@@ -1,6 +1,6 @@
-# AKAP11 RNA-seq reanalysis: from FASTQ to pathways
+# AKAP11 RNA-seq Reanalysis
 
-**BINF 5240 Bioinformatics Computing: course project**
+**BINF 5240 Bioinformatics Computing: Course's Final Project**
 
 ![Python](https://img.shields.io/badge/python-3.12%2B-blue)
 ![nf-core/rnaseq](https://img.shields.io/badge/nf--core%2Frnaseq-3.19.0-green)
