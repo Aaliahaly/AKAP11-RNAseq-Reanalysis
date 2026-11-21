@@ -209,13 +209,13 @@ python3 -m pip install -r requirements.txt
 **The sample sheet** (`samples.tsv`) is tab-separated, with a `sample` column and a `condition` column. Sample names must match the count table's column headings exactly. Extra columns are ignored.
 
 ```tsv
-sample	         condition geo_samples  ra_run
-AKAP11_KO_clone16 	KO	   GSM8200086	SRR28641569
-AKAP11_KO_clone20	KO	   GSM8200087	SRR28641568
-AKAP11_KO_clone21	KO	   GSM8200088	SRR28641567
-WT_rep1	            WT	   GSM8200089	SRR28641566
-WT_rep2	            WT	   GSM8200090	SRR28641565
-WT_rep3	            WT	   GSM8200091	SRR28641564
+sample	          condition    geo_samples  ra_run
+AKAP11_KO_clone16 	  KO	   GSM8200086	SRR28641569
+AKAP11_KO_clone20	  KO	   GSM8200087	SRR28641568
+AKAP11_KO_clone21	  KO	   GSM8200088	SRR28641567
+WT_rep1	              WT	   GSM8200089	SRR28641566
+WT_rep2	              WT	   GSM8200090	SRR28641565
+WT_rep3	              WT	   GSM8200091	SRR28641564
 ```
 
 ### 3. Run
