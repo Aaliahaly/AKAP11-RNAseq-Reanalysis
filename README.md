@@ -9,7 +9,7 @@
 
 This project reanalyzes bulk RNA-seq data from human iPSC-derived neurons: three heterozygous **AKAP11 knockout** clones (KO) and three **wild-type** replicates (WT). It starts from the raw FASTQ files and goes all the way to differential expression, pathway analysis and an **automatic comparison with the published paper**, including redrawn versions of the paper's figures.
 
-
+|||
 |---|---|
 | **Data**  | [GEO GSE263847](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE263847), BioProject PRJNA1099597. 6 paired-end samples, Illumina NovaSeq 6000  |
 | **Paper**  | Farhangdoost N. *et al.* (2025) *Molecular Psychiatry* 30:4543–4557, [doi:10.1038/s41380-025-03040-x](https://doi.org/10.1038/s41380-025-03040-x)  |
