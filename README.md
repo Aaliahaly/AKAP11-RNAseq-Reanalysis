@@ -418,7 +418,7 @@ Every cutoff and option is in [`settings.py`](settings.py), each with a comment.
 
 ## Reading the code
 
-The code is written for beginners. Every file starts with a header covering **what it does, where it fits, its inputs, its outputs and the Python ideas it uses**. Each function is split into numbered **STEP** sections, and comments explain nearly every line. There are no lambdas, list comprehensions or one-line `if/else` expressions; everything is a plain `for` loop or `if` block.
+The code is written for beginners. Every file starts with a header covering **what it does, where it fits, its inputs, its outputs and the Python ideas it uses**. Each function is split into numbered **STEP** sections, and comments explain nearly every line. 
 
 Suggested reading order:
 
