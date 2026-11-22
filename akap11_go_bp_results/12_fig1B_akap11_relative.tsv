@@ -1,0 +1,5 @@
+sample	this_project_rnaseq	paper_qpcr_exon7
+WT (mean of 3)	1.0	1.0
+AKAP11_KO_clone21	0.545	0.43
+AKAP11_KO_clone20	0.769	0.64
+AKAP11_KO_clone16	0.647	0.44
