@@ -88,7 +88,7 @@ When it prints `Results saved in akap11_go_bp_results`, open:
 ## Repository layout
 
 ```text
-RNAseq_Small_Steps/
+AKAP11-RNAseq-Reanalysis/
 ├── README.md                     this file
 ├── requirements.txt              Python packages to install
 ├── .gitignore
@@ -309,6 +309,7 @@ The top five pathways are all GPCR signalling (*Signaling by GPCR*, *GPCR ligand
 | Paper's top 60 genes (Fig. 2D) | — | 55 present; **all 55 same direction**; 37 significant; r = 0.98 | **agree** |
 | Reactome ORA (Fig. 2E) | GPCR signalling, ECM | 7 of the paper's top 10 significant; GPCR pathways are our top 5 | **agree** |
 | GSEA (Fig. 2F) | Ribosome/protein synthesis down in KO | 16 such terms significantly down, 0 up | **agree** |
+| GSEA, the paper's 20 GO MF terms (Fig. 2F) | — | 9 matched; **all 9 same direction** | **agree** |
 
 ![Paper vs our fold changes](akap11_go_bp_results/11_paper_vs_our_fold_change.png)
 
@@ -316,7 +317,7 @@ The top five pathways are all GPCR signalling (*Signaling by GPCR*, *GPCR ligand
 
 **Missing genes:** five of the paper's top 60 genes aren't in this dataset. C5orf17, ZBED6CL, C9orf64 and LINC02302 were renamed between Ensembl 104 (paper) and GENCODE v47 (here); for example, C9orf64 is now *QNG1*. FRG1DP has zero reads in all six samples.
 
-**Paper-style GSEA (GO Molecular Function):** 7 of the paper's 20 Fig. 2F terms are in our results, and all 7 change in the same direction. rRNA binding, tRNA binding and aminoacyl-tRNA ligase activity are significantly lower in KO.
+**Paper-style GSEA (GO Molecular Function):** 9 of the paper's 20 Fig. 2F terms could be matched by name in our results, and **all 9 change in the same direction** as in the paper. The full list, including the terms that couldn't be matched, is in `12_paper_figures_report.md`.
 
 ### Why the numbers aren't identical
 
@@ -490,7 +491,7 @@ The gene set files are for human genes. For another species, use matching `.gmt`
 
 | Part 2 (Python) | Version tested |
 |---|---|
-| Python | 3.13 |
+| Python | 3.13 and 3.14 |
 | pydeseq2 | 0.6.0 (pinned) |
 | gseapy | 1.3.2 (pinned) |
 | pandas | 3.0 |
