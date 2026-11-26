@@ -7,11 +7,8 @@ WHAT THIS FILE DOES
     It reads the two input tables, checks that they look right,
     removes genes with very few reads, and prepares readable gene
     names for the plots.
-
     The two input tables are:
-
     1. The sample sheet (samples.tsv): which sample is in which group.
-
          sample              condition   geo_sample   sra_run
          AKAP11_KO_clone16   KO          GSM8200086   SRR28641569
          ...
@@ -20,7 +17,6 @@ WHAT THIS FILE DOES
     2. The count table (AKAP11_final_gene_counts_length_scaled.tsv):
        one row per gene, one column per sample. Each number is
        (roughly) how many sequencing reads came from that gene.
-
          gene_id              gene_name   AKAP11_KO_clone16   ...
          ENSG00000000003.16   TSPAN6      9775.336            ...
 
@@ -66,11 +62,15 @@ import numpy as np
 # Almost everything in this project uses it.
 import pandas as pd
 
-# Read four settings from settings.py (see that file for explanations).
-from settings import gene_id_column     # "gene_id"
-from settings import gene_name_column   # "gene_name"
-from settings import min_count          # 10
-from settings import min_samples        # None -> use the smaller group size
+# Read the settings this file needs from settings.py (see that file
+# for why each value was chosen).
+from settings import gene_id_column             # "gene_id"
+from settings import gene_name_column           # "gene_name"
+from settings import sample_column              # "sample"
+from settings import condition_column           # "condition"
+from settings import min_count                  # 10
+from settings import min_samples                # None -> use the smaller group size
+from settings import min_replicates_per_group   # 2
 
 
 def read_counts(count_file, sample_file, reference_group, comparison_group):
@@ -102,13 +102,15 @@ def read_counts(count_file, sample_file, reference_group, comparison_group):
     #   ["sample", "condition", "geo_sample", "sra_run"]
     sample_sheet_columns = list(metadata.columns)
 
-    # The sample sheet MUST have a "sample" column and a "condition"
-    # column. If either is missing, stop with a clear message.
-    if "sample" not in sample_sheet_columns:
-        raise ValueError("The sample sheet needs sample and condition columns.")
+    # The sample sheet MUST have a sample-name column and a group
+    # column. Their names come from settings.py ("sample" and
+    # "condition"). If either is missing, stop with a clear message
+    # that names the missing column.
+    if sample_column not in sample_sheet_columns:
+        raise ValueError("The sample sheet needs a column called: " + sample_column)
 
-    if "condition" not in sample_sheet_columns:
-        raise ValueError("The sample sheet needs sample and condition columns.")
+    if condition_column not in sample_sheet_columns:
+        raise ValueError("The sample sheet needs a column called: " + condition_column)
 
     # Every sample needs its own, non-empty name: we use the name to
     # find that sample's column in the count table.
@@ -119,7 +121,7 @@ def read_counts(count_file, sample_file, reference_group, comparison_group):
 
     # This loop runs once per row of the sample sheet.
     # Each time, sample_name holds the next name, e.g. "WT_rep1".
-    for sample_name in metadata["sample"]:
+    for sample_name in metadata[sample_column]:
 
         # An empty name is not allowed.
         if sample_name == "":
@@ -147,14 +149,14 @@ def read_counts(count_file, sample_file, reference_group, comparison_group):
     #   WT          True
     #   WT          True
     #   WT          True
-    is_reference_row = metadata["condition"] == reference_group
+    is_reference_row = metadata[condition_column] == reference_group
 
     # Putting that True/False list inside [ ] keeps only the True rows,
     # so "reference" is a smaller table with just the WT samples.
     reference = metadata[is_reference_row]
 
     # The same for the comparison group (KO).
-    is_comparison_row = metadata["condition"] == comparison_group
+    is_comparison_row = metadata[condition_column] == comparison_group
     comparison = metadata[is_comparison_row]
 
     # len() of a table gives its number of rows, so these are the
@@ -169,13 +171,17 @@ def read_counts(count_file, sample_file, reference_group, comparison_group):
     else:
         smaller_group = number_of_comparison_samples
 
-    # Each group needs at least 2 samples (replicates). With only one
-    # sample, there is no way to measure how much samples naturally
-    # vary, and the statistics in fit_model.py can't work.
+    # Each group needs at least 2 samples (replicates; the number is
+    # min_replicates_per_group in settings.py). With only one sample,
+    # there is no way to measure how much samples naturally vary, and
+    # the statistics in fit_model.py can't work.
     # (This also catches a typo in a group name: a misspelled group
     # matches 0 rows.)
-    if smaller_group < 2:
-        raise ValueError("Each selected group needs at least two samples.")
+    # str() turns the number into text, so it can be joined with "+".
+    if smaller_group < min_replicates_per_group:
+        raise ValueError("Each selected group needs at least "
+                         + str(min_replicates_per_group) + " samples. "
+                         "Check that the group names you typed match the sample sheet.")
 
     # ---------------------------------------------------------------
     # Put the two groups back together into one table.
@@ -188,15 +194,15 @@ def read_counts(count_file, sample_file, reference_group, comparison_group):
 
     # Use the sample names as the row labels (the "index").
     # After this, we can look a sample up by its name, for example
-    # metadata.loc["WT_rep1"].
-    metadata = metadata.set_index("sample")
+    # metadata.loc["WT_rep1"]. ("sample" is sample_column in settings.py.)
+    metadata = metadata.set_index(sample_column)
 
-    # Keep only the "condition" column; we don't need the GEO and SRA
-    # IDs for the analysis.
-    # Single brackets, metadata["condition"], would give one column on
-    # its own. Double brackets, metadata[["condition"]], keep it as a
-    # table, which is what PyDESeq2 expects later.
-    metadata = metadata[["condition"]]
+    # Keep only the group column; we don't need the GEO and SRA IDs
+    # for the analysis.
+    # Single brackets, metadata[condition_column], would give one
+    # column on its own. Double brackets, metadata[[condition_column]],
+    # keep it as a table, which is what PyDESeq2 expects later.
+    metadata = metadata[[condition_column]]
 
     # A plain list of the sample names, in order:
     #   ["WT_rep1", "WT_rep2", "WT_rep3",
@@ -332,7 +338,8 @@ def read_counts(count_file, sample_file, reference_group, comparison_group):
     # (9775.0 -> 9775).
     counts = rounded_counts.astype(int)
 
-    # For every gene in every sample, ask: "at least 10 reads?"
+    # For every gene in every sample, ask: "at least min_count reads?"
+    # (min_count is 10 in settings.py.)
     # The result is a table of True/False with the same shape as
     # counts. Example for one gene:
     #
@@ -345,14 +352,17 @@ def read_counts(count_file, sample_file, reference_group, comparison_group):
     # of samples that passed. For the example above: 2.
     number_of_passing_samples = has_enough_counts.sum(axis=1)
 
-    # One True/False per gene: did enough samples (3) pass?
+    # One True/False per gene: did enough samples pass?
+    # (required_samples was worked out in STEP 1: 3 for our data.)
     keep_this_gene = number_of_passing_samples >= required_samples
 
     # .loc[ True/False list ] keeps only the rows (genes) marked True.
     # For our data this keeps 26,288 of the 78,932 genes.
     filtered = counts.loc[keep_this_gene]
 
-    # The model needs at least 2 genes. With real data this is never a
+    # The model needs at least 2 genes: with a single gene, DESeq2 has
+    # nothing to compare sequencing depth against, so this is a fixed
+    # rule of the method, not a choice. With real data this is never a
     # problem, but it catches a wrong setting (like min_count = 1000000).
     if len(filtered) < 2:
         raise ValueError("Filtering left fewer than two genes or an empty sample.")
