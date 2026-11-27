@@ -378,8 +378,6 @@ The top five pathways are all GPCR signalling (*Signaling by GPCR*, *GPCR ligand
 <tr>
 <td colspan="2" align="center"><img src="akap11_go_bp_results/12_fig2F_gsea_go_mf.png" alt="Fig. 2F: GSEA, GO Molecular Function" width="50%"><br><b>Fig. 2F: GSEA, GO Molecular Function</b></td>
 </tr>
-<td width="50%"></td>
-</tr>
 </table>
 ---
 
