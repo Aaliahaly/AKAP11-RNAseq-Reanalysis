@@ -132,16 +132,14 @@ AKAP11-RNAseq-Reanalysis/
 
 The full, step-by-step guide is in **[docs/01_fastq_to_counts.md](docs/01_fastq_to_counts.md)**, with every command, the Slurm scripts, expected outputs, job IDs and a troubleshooting section. This is a summary.
 
-### Why nf-core/rnaseq with STAR + Salmon suits this data
-
 | Property of the data | What the pipeline needs | How nf-core/rnaseq handles it |
 |---|---|---|
-| Bulk, short-read, paired-end Illumina | A bulk pipeline ending in one count per gene per sample | Built for exactly this; peer-reviewed and versioned (3.19.0) |
+| Bulk, short-read, paired-end Illumina | A bulk pipeline ending in one count per gene per sample | Built for exactly this; community-reviewed and versioned (3.19.0) |
 | Spliced mRNA, human genome available | A splice-aware aligner | **STAR**, the same aligner the paper used |
-| Many reads match several transcripts | A way to share ambiguous reads | **Salmon** shares them out; the paper's HTSeq discards them |
+| Many reads match several transcripts | A way to share ambiguous reads | **Salmon** shares them out by likelihood; the paper's HTSeq discards them, so some genes lose counts |
 | Strandedness not stated on GEO | Automatic detection | `strandedness: auto`, confirmed by RSeQC (all reverse) |
 | 145 to 294 million read pairs per sample | Cluster execution with restarts | Nextflow on Slurm, Singularity containers, `-resume` |
-| Need to trust the data first | Built-in QC | FastQC, Trim Galore, Qualimap, RSeQC, dupRadar, featureCounts, MultiQC |
+| Quality must be checked before analysis | Built-in QC | FastQC, Trim Galore, Qualimap, RSeQC, dupRadar, featureCounts (biotype QC), MultiQC |
 
 ### The steps
 
