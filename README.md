@@ -239,12 +239,13 @@ Some warnings print along the way; that's normal. The run is finished when it pr
 
 ### 4. Rerun only the comparison or the figures
 
-Both scripts read everything from the results folder, so they can be rerun on their own in a few seconds:
+`run_analysis.py` already does these two steps. To redo only them after a full run (for example, after changing the comparison or figure code), run them on their own. They read everything from the results folder, so each takes a few seconds:
 
 ```bash
 python3 compare_to_paper.py akap11_go_bp_results
 python3 plot_paper_figures.py akap11_go_bp_results WT KO
 ```
+`WT KO` must match the groups you used in the full run.
 
 ---
 
