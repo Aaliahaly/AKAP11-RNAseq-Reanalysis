@@ -11,10 +11,10 @@ This project reanalyzes bulk RNA-seq data from human iPSC-derived neurons: three
 
 |||
 |---|---|
-| **Data**    | [GEO GSE263847](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE263847), BioProject PRJNA1099597. 6 paired-end samples, Illumina NovaSeq 6000   |
-| **Paper**    | Farhangdoost, N., Liao, C., Liu, Y. et al. Transcriptomic and epigenomic consequences of heterozygous loss-of-function mutations in AKAP11, a shared risk gene for bipolar disorder and schizophrenia. Mol Psychiatry 30, 4543–4557 (2025). https://doi.org/10.1038/s41380-025-03040-x   |
-| **Part 1**    | FASTQ → gene counts with nf-core/rnaseq 3.19.0 (STAR + Salmon) on SDSC Expanse |
-| **Part 2**    | Gene counts → results with Python (PyDESeq2, GSEApy, Reactome ORA) |
+| **Data**     | [GEO GSE263847](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE263847), BioProject PRJNA1099597. 6 paired-end samples, Illumina NovaSeq 6000   |
+| **Paper**     | Farhangdoost, N., Liao, C., Liu, Y. et al. Transcriptomic and epigenomic consequences of heterozygous loss-of-function mutations in AKAP11, a shared risk gene for bipolar disorder and schizophrenia. Mol Psychiatry 30, 4543–4557 (2025). https://doi.org/10.1038/s41380-025-03040-x   |
+| **Part 1**     | FASTQ → gene counts with nf-core/rnaseq 3.19.0 (STAR + Salmon) on SDSC Expanse |
+| **Part 2**     | Gene counts → results with Python (PyDESeq2, GSEApy, Reactome ORA) |
 
 > **Main result:** the reanalysis reproduces the paper closely. It finds **848 significant genes** against the paper's 849. All 55 of the paper's top 60 genes that are present in this dataset change **in the same direction** (fold-change correlation **r = 0.98**). The same biology comes out: **GPCR signalling** leads the Reactome analysis, and **ribosome and translation genes go down** in the knockout in GSEA.
 
