@@ -182,7 +182,7 @@ nextflow run nf-core/rnaseq \
 ```
 
 > [!NOTE]
-> `--max_cpus`, `--max_memory` and `--max_time` were ignored by nf-core/rnaseq 3.19.0 (they come from older nf-core pipelines). To cap resources, use `resourceLimits` in the config instead; see [Part 1 details](docs/01_fastq_to_counts.md).
+> `--max_cpus`, `--max_memory` and `--max_time` were ignored by nf-core/rnaseq 3.19.0 (they come from older nf-core pipelines, and even there they only capped resources; they never gave a task more). The out-of-memory failures were fixed by `configs/readdup_72g.config`, which raises the memory of the one process that needed it. To cap resources in newer pipelines, use `resourceLimits` in the config instead; see [Part 1 details](docs/01_fastq_to_counts.md).
 
 The output used in Part 2 is `salmon.merged.gene_counts_length_scaled.tsv`, renamed here to `AKAP11_final_gene_counts_length_scaled.tsv`.
 
