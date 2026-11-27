@@ -1,25 +1,21 @@
 """
 ===================================================================
-settings.py
-===================================================================
+1) settings.py
 
-WHAT THIS FILE DOES
-    It holds every number, name, color, and file name that the analysis
-    uses: cutoffs, column names, labels, colors, and the names of the
-    files it reads and writes.
+What does this file do? 
+    It holds every number, name, color, and file name that the analysis uses: 
+    cutoffs, column names, labels, colors, and the names of the files it reads and writes.
 
     Nothing "runs" in this file. It only creates variables
     (a variable is a name that stores a value, like  min_count = 10).
 
-WHERE IT FITS
-    Every other script reads its settings from here. For example,
-    read_counts.py starts with the line:
-
+Where it fits?
+    Every other script reads its settings from here. 
+    For example, read_counts.py starts with the line:
         from settings import min_count
-
     which means: "open settings.py and give me the value of min_count".
 
-WHY HAVE A SETTINGS FILE? (WHY NOTHING IS "HARD-CODED")
+Why do we need a setting file? (AKA, why nothing is "Hard-coded")
     "Hard-coding" means typing a value straight into the code where it
     is used, for example, writing 0.05 inside five different scripts.
     That causes two problems:
@@ -33,9 +29,9 @@ WHY HAVE A SETTINGS FILE? (WHY NOTHING IS "HARD-CODED")
     Facts about the PUBLISHED PAPER (its numbers, its sample order,
     its methods, its citation) are not settings: they are data copied
     from the paper, so they live in the files of the paper_reference
-    folder instead (see paper_reference/README.md).
+    folder instead (please see paper_reference/README.md).
 
-WHAT IS DELIBERATELY NOT IN THIS FILE, AND WHY
+What is deliberately not in this file, and why?
     - Column names made by other tools, such as PyDESeq2's "padj" and
       "log2FoldChange" or GSEApy's "NES" and "FDR q-val". Those tools
       decide these names, not us, so they can't be changed here.
@@ -47,7 +43,7 @@ WHAT IS DELIBERATELY NOT IN THIS FILE, AND WHY
       it shows, so each one stays next to the plot line it controls,
       with a comment explaining it.
 
-HOW TO READ A LINE IN THIS FILE
+How to read a line in this file?
         fdr_cutoff = 0.05
         ^^^^^^^^^^   ^^^^
         the name     the value stored under that name
@@ -61,22 +57,22 @@ HOW TO READ A LINE IN THIS FILE
 """
 
 
-# ###################################################################
+# ############################################
 # PART 1: Column names in the two input tables
-# ###################################################################
-#
+# #############################################
+
 # The count table (AKAP11_final_gene_counts_length_scaled.tsv) looks
 # like this (only the first few columns are shown):
-#
+
 #   gene_id              gene_name   AKAP11_KO_clone16   ...   WT_rep3
 #   ENSG00000000003.16   TSPAN6      9775.336            ...   9120.512
 #   ENSG00000000005.6    TNMD        0.0                 ...   1.0
-#
+
 # The sample sheet (samples.tsv) looks like this:
-#
+
 #   sample              condition   geo_sample   sra_run
 #   AKAP11_KO_clone16   KO          GSM8200086   SRR28641569
-#
+
 # These settings tell the scripts which columns hold what. If your own
 # files use other column names, change them here and nowhere else.
 
@@ -99,10 +95,10 @@ sample_column = "sample"
 condition_column = "condition"
 
 
-# ###################################################################
+# ############################################
 # PART 2: Removing genes with very few reads
-# ###################################################################
-#
+# ############################################
+
 # Most of the 78,932 genes in the table have almost no reads in these
 # neurons. A gene with 0 to 3 reads per sample can't be tested
 # reliably, so we remove those genes before the statistics.
@@ -114,14 +110,11 @@ condition_column = "condition"
 min_count = 10
 
 # How many samples must pass for us to keep the gene?
-#
 # None means "not chosen here": read_counts.py then uses the size of
 # the smaller group instead.
-#
 # Example with our data:
 #   3 WT samples + 3 KO samples -> the smaller group has 3 samples.
 #   So a gene is kept if ANY 3 of the 6 samples have at least 10 reads.
-#
 # Why "any 3" and not "all 6"? A gene that is switched ON only in the
 # knockout (3 samples with reads, 3 without) is exactly the kind of
 # gene we want to find. Requiring all 6 would throw it away.
@@ -135,37 +128,32 @@ min_samples = None
 min_replicates_per_group = 2
 
 
-# ###################################################################
+# ##################################################
 # PART 3: Cutoffs for calling a gene "significant"
-# ###################################################################
-#
+# ##################################################
+
 # A gene is called significant only if it passes BOTH cutoffs below.
 # These are the same cutoffs the paper used, so our gene lists can be
 # compared with theirs. (plot_paper_figures.py checks this against
 # paper_reference/paper_summary.tsv.)
 
 # CUTOFF 1: the adjusted p-value (padj).
-#
 # A p-value says how surprising the result would be if the gene did
 # NOT really change. We test about 26,000 genes, so even with no real
 # changes, about 1,300 of them (5%) would get p < 0.05 by luck alone.
 # The adjusted p-value corrects for testing so many genes at once.
 # A gene needs padj of 0.05 or less.
-#
 # The same cutoff is also used for pathways and GO terms (ORA, GSEA),
 # so "significant" means the same thing everywhere in the project.
 fdr_cutoff = 0.05
 
 # CUTOFF 2: the size of the change, as a log2 fold change.
-#
 # "Fold change" = expression in KO divided by expression in WT.
 # "log2" turns fold changes into a symmetric scale:
-#
 #     fold change     log2 fold change     meaning
 #     2  (twice)       1                    doubled in KO
 #     1  (same)        0                    no change
 #     0.5 (half)      -1                    halved in KO
-#
 # A gene needs a log2 fold change of at least 1 in either direction,
 # meaning it at least doubled or at least halved.
 fold_change_cutoff = 1.0
@@ -174,11 +162,11 @@ fold_change_cutoff = 1.0
 # The three labels every gene gets (fit_model.py adds them in a
 # column called "direction"). Many scripts look for these labels, so
 # they are typed only here: a typo in one script can't break it.
-#
+
 # "comparison" means the comparison group (KO). The labels don't say
 # "KO" on purpose, so the same code works for any two groups.
-#
-# NOTE: paper_reference/paper_gsea_go_mf.tsv uses the same two
+
+# Please note: paper_reference/paper_gsea_go_mf.tsv uses the same two
 # "Higher/Lower" labels. If you change them here, change them there.
 # ---------------------------------------------------------------
 higher_label = "Higher in comparison"         # significant AND higher in KO
@@ -186,9 +174,9 @@ lower_label = "Lower in comparison"           # significant AND lower in KO
 not_significant_label = "Below thresholds"    # failed at least one cutoff
 
 
-# ###################################################################
+# #######################
 # PART 4: Plot settings
-# ###################################################################
+# #######################
 
 # How many gene names to write on EACH side of the volcano plot.
 # With more labels, the names pile on top of each other.
@@ -253,25 +241,23 @@ cutoff_line_color = "gray"        # dashed lines that mark the cutoffs
 label_line_color = "#65717a"      # thin lines from a moved label to its dot
 
 
-# ###################################################################
+# #############################################
 # PART 5: GSEA (gene set enrichment analysis)
-# ###################################################################
-#
+# ##############################################
+
 # GSEA puts ALL genes in order, from "most up in KO" to "most down in
 # KO", then checks whether the genes of a GO term (a named group of
 # genes, like "Translation") bunch up near the top or the bottom.
 
 # Which collection of gene sets (GO terms) to test.
-#
+
 # Two kinds of value work here:
-#
 #   1. An Enrichr library name. GSEApy downloads it, so you need
 #      internet. Two useful ones:
 #        "GO_Biological_Process_2025"  -> processes genes take part in
 #                                         (example: "Translation")
 #        "GO_Molecular_Function_2025"  -> what gene products do
 #                                         (example: "Actin Binding")
-#
 #   2. The name of a .gmt file in this folder. This works offline:
 #        "go_biological_process.gmt"
 gsea_gene_sets = "GO_Biological_Process_2025"
@@ -296,7 +282,7 @@ gsea_top = 8
 
 # How many GO terms get a classic GSEA enrichment plot (the running
 # enrichment score curve, 09_gsea_enrichment_plots.png), in EACH
-# direction. 3 per side gives a 3 x 2 grid, readable on one slide.
+# direction. 3 per side gives a 3 x 2 grid, making it readable on one slide.
 gsea_enrichment_plot_terms = 3
 
 # The color of the running enrichment score curve. Green is the color
@@ -314,10 +300,10 @@ permutations = 1000
 seed = 42
 
 
-# ###################################################################
+# ############################################
 # PART 6: ORA (over-representation analysis)
-# ###################################################################
-#
+# ############################################
+
 # ORA asks a simpler question than GSEA: "Among our significant genes,
 # are the genes of some pathway found more often than chance would
 # predict?" The paper did this with Reactome pathways (its Fig. 2E).
@@ -347,14 +333,14 @@ ora_top = 10
 term_id_markers = [" R-HSA-", "(GO:"]
 
 
-# ###################################################################
+# #################################################################
 # PART 7: Comparing with the published paper (compare_to_paper.py)
-# ###################################################################
+# #################################################################
 
 # The folder with small tables copied from the paper's figures.
 # compare_to_paper.py and plot_paper_figures.py check our results
 # against them.
-#
+
 # If the folder doesn't exist (for example, when you analyze a
 # different dataset), those comparison steps are skipped and
 # everything else still runs.
@@ -362,14 +348,13 @@ paper_reference_folder = "paper_reference"
 
 # ---------------------------------------------------------------
 # Rules of thumb for the "verdict" of each check.
-#
 # There is no official rule for when two analyses "agree", so these
-# are our choices, written down so anyone can see (and change) them.
+# are my choices, written down so anyone can see (and change) them.
 # ---------------------------------------------------------------
 
 # Check 1: the two totals of significant genes count as "similar" if
 # they are at most 20% apart. Why 20%? There is no standard value for
-# this; it is our own choice. Our pipeline differs from the paper's
+# this; it is my own choice. My pipeline differs from the paper's
 # at almost every step (counting, annotation, gene filter, model; see
 # paper_reference/paper_methods.tsv), and each difference moves a few
 # genes across the cutoffs, so we don't expect identical totals.
@@ -385,7 +370,7 @@ agree_direction_percent = 80
 # Check 3: "agree" if at least 70% of the paper's top Reactome
 # pathways are also significant in our ORA. This is a bit lower than
 # the 80% above because pathway p-values depend on the database
-# version and the background genes, which differ (see the methods
+# version and the background genes, which differ (Please, see the methods
 # table in paper_reference/paper_methods.tsv).
 agree_ora_percent = 70
 
@@ -397,9 +382,9 @@ report_examples = 3
 min_points_for_correlation = 3
 
 
-# ###################################################################
+# ##############################################################
 # PART 8: Redrawing the paper's figures (plot_paper_figures.py)
-# ###################################################################
+# ##############################################################
 
 # The paper's Fig. 2F is a GSEA with GO Molecular Function terms,
 # while our main GSEA (PART 5) uses GO Biological Process. To redraw
@@ -412,7 +397,6 @@ paper_gsea_gene_sets = "GO_Molecular_Function_2025"
 paper_gsea_collection_label = "GO Molecular Function"
 
 # Size limits for that second GSEA.
-#
 # The paper's Fig. 2F includes very large terms such as "RNA binding",
 # which has more than 1,000 genes. Our main GSEA stops at 500 genes
 # (gsea_max_size above), which would leave those terms out. So this
@@ -434,7 +418,7 @@ paper_heatmap_colors = ["#4B3F9E", "#FFFFFF", "#D7301F"]   # Fig. 2C: purple, wh
 # ###################################################################
 # PART 9: Names of the files in the paper_reference folder
 # ###################################################################
-#
+
 # What each file holds is explained in paper_reference/README.md.
 
 paper_info_file = "paper_info.tsv"                    # citation and a few facts about the paper
@@ -452,12 +436,12 @@ paper_not_reproducible_file = "paper_not_reproducible.tsv"  # panels RNA-seq can
 # ###################################################################
 # PART 10: Names of the files the analysis writes
 # ###################################################################
-#
+
 # Every output file name is typed once, here. Several scripts read
 # files that another script wrote (for example, compare_to_paper.py
 # reads 02_differential_expression.tsv, which fit_model.py writes),
 # so the writer and the reader must use exactly the same name.
-#
+
 # The numbers at the start (01_, 02_, ...) are the step that makes the
 # file, so the results folder lists them in the order they were made.
 
