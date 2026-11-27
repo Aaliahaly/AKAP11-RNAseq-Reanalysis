@@ -3,15 +3,12 @@
 read_counts.py
 ===================================================================
 
-WHAT THIS FILE DOES
+What this file does?
     It reads the two input tables, checks that they look right,
     removes genes with very few reads, and prepares readable gene
     names for the plots.
-
     The two input tables are:
-
     1. The sample sheet (samples.tsv): which sample is in which group.
-
          sample              condition   geo_sample   sra_run
          AKAP11_KO_clone16   KO          GSM8200086   SRR28641569
          ...
@@ -20,26 +17,25 @@ WHAT THIS FILE DOES
     2. The count table (AKAP11_final_gene_counts_length_scaled.tsv):
        one row per gene, one column per sample. Each number is
        (roughly) how many sequencing reads came from that gene.
-
          gene_id              gene_name   AKAP11_KO_clone16   ...
          ENSG00000000003.16   TSPAN6      9775.336            ...
 
-WHERE IT FITS
+Where it fits?
     Step 1 of the analysis. run_analysis.py calls read_counts() first,
     and every later step uses the three tables it returns.
 
-INPUTS
+Input:
     count_file        path to the count table
     sample_file       path to the sample sheet
     reference_group   the baseline group, here "WT"
     comparison_group  the group compared with it, here "KO"
 
-OUTPUTS (returned to run_analysis.py, not saved as files)
+Output: (returned to run_analysis.py, not saved as files)
     filtered    counts for the genes we keep (genes x samples)
     metadata    one row per sample: its group and two QC numbers
     annotation  one row per gene: its name and its plot label
 
-PYTHON IDEAS USED IN THIS FILE
+Python ideas used in this file:
     DataFrame     a pandas table, with labeled rows and columns
     index         the row labels of a DataFrame
     True/False filtering
@@ -79,13 +75,12 @@ from settings import min_replicates_per_group   # 2
 
 def read_counts(count_file, sample_file, reference_group, comparison_group):
 
-    # ===============================================================
+    # ================================
     # STEP 1: Read the sample sheet
-    # ===============================================================
+    # ================================
 
     # pd.read_csv() reads a text table into a pandas DataFrame.
     # Despite its name, it reads any separator, not only commas.
-    #
     #   sep="\t"              -> the columns are separated by tabs
     #                            ("\t" is how Python writes a tab)
     #   dtype=str             -> read every value as text, so a
@@ -116,7 +111,7 @@ def read_counts(count_file, sample_file, reference_group, comparison_group):
 
     # Every sample needs its own, non-empty name: we use the name to
     # find that sample's column in the count table.
-    #
+    
     # We go through the names one by one, and keep a list of the names
     # we have already seen, so we can spot repeats.
     names_seen_so_far = []
@@ -124,12 +119,12 @@ def read_counts(count_file, sample_file, reference_group, comparison_group):
     # This loop runs once per row of the sample sheet.
     # Each time, sample_name holds the next name, e.g. "WT_rep1".
     for sample_name in metadata[sample_column]:
-
+        
         # An empty name, or a name we have already seen (a repeat), is
         # not allowed. "or" means: stop if EITHER problem is true.
         if sample_name == "" or sample_name in names_seen_so_far:
             raise ValueError("Sample names must be unique and nonempty.")
-
+            
         # Remember this name, so a later repeat of it gets caught.
         names_seen_so_far.append(sample_name)
 
@@ -140,7 +135,6 @@ def read_counts(count_file, sample_file, reference_group, comparison_group):
 
     # Comparing a whole column with one value gives one True/False per
     # row. With reference_group = "WT":
-    #
     #   condition   == "WT" ?
     #   KO          False
     #   KO          False
