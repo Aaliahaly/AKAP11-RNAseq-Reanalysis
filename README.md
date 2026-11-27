@@ -98,7 +98,7 @@ AKAP11-RNAseq-Reanalysis/
 │   └── AKAP11_Expanse_Workflow_Final.docx   the same guide as a Word file
 │
 ├── run_analysis.py               START HERE: runs every step in order
-├── settings.py                   every cutoff and option, in one place
+├── settings.py                   every cutoff, option, color and file name, in one place
 ├── read_counts.py                step 1: read, check and filter the data
 ├── fit_model.py                  step 2: differential expression (PyDESeq2)
 ├── plot_pca.py                   step 3: PCA and sample correlations
@@ -108,6 +108,7 @@ AKAP11-RNAseq-Reanalysis/
 ├── plot_target_gene.py           step 6: one gene across all samples
 ├── run_gsea.py                   step 7: GSEA
 ├── plot_pathways.py              step 8: GSEA bar plot
+├── plot_gsea_enrichment.py       step 8: classic GSEA enrichment plots (running score curves)
 ├── run_ora.py                    step 9: Reactome over-representation analysis
 ├── plot_ora.py                   step 10: ORA bar plot
 ├── run_paper_gsea.py             step 11: a second GSEA set up like the paper's Fig. 2F
@@ -119,7 +120,7 @@ AKAP11-RNAseq-Reanalysis/
 ├── samples.tsv                                  input: sample sheet
 ├── go_biological_process.gmt                    GO Biological Process (offline copy)
 ├── reactome_human.gmt                           Reactome pathways
-├── paper_reference/                             values copied from the paper's Figs. 1 and 2
+├── paper_reference/                             values copied from the paper (numbers, sample order, methods, citation)
 └── akap11_go_bp_results/                        results of the run described below
 ```
 
@@ -240,7 +241,7 @@ Both scripts read everything from the results folder, so they can be rerun on th
 
 ```bash
 python3 compare_to_paper.py akap11_go_bp_results
-python3 plot_paper_figures.py akap11_go_bp_results
+python3 plot_paper_figures.py akap11_go_bp_results WT KO
 ```
 
 ---
@@ -253,9 +254,9 @@ python3 plot_paper_figures.py akap11_go_bp_results
 | 2 | `fit_model.py` | PyDESeq2, design `~condition`, Wald test, Benjamini–Hochberg; significant = padj ≤ 0.05 and \|log2FC\| ≥ 1 | DESeq2 models count data, corrects for sequencing depth and shares variance information across genes, which matters with only 3 replicates |
 | 3 | `plot_pca.py` | PCA of log2(CPM + 1); Pearson correlations of VST expression | Checks that samples group by genotype and finds outliers |
 | 4 | `plot_volcano.py`, `plot_ma.py` | Fold change vs adjusted p-value, and vs mean count | Shows the size and strength of the changes |
-| 5 | `plot_expression_heatmap.py` | Row z-scores of the top 25 significant genes | Shows that the changes are consistent across replicates |
+| 5 | `plot_expression_heatmap.py` | Clustered heatmap (genes and samples, with dendrograms) of row z-scores of the top 25 down and top 25 up genes | Shows that the changes are consistent across replicates |
 | 6 | `plot_target_gene.py` | Normalized counts of one gene | Checks the knocked-out gene itself |
-| 7–8 | `run_gsea.py`, `plot_pathways.py` | GSEApy prerank on **all** genes ranked by the Wald statistic; GO Biological Process; 1,000 permutations, seed 42 | Finds gene sets that shift together, even when single genes change only a little |
+| 7–8 | `run_gsea.py`, `plot_pathways.py`, `plot_gsea_enrichment.py` | GSEApy prerank on **all** genes ranked by the Wald statistic; GO Biological Process; 1,000 permutations, seed 42 | Finds gene sets that shift together, even when single genes change only a little |
 | 9–10 | `run_ora.py`, `plot_ora.py` | Hypergeometric test of the significant genes against Reactome, with all tested genes as background; BH correction | Repeats the paper's Fig. 2E |
 | 11 | `run_paper_gsea.py` | A second GSEA with GO Molecular Function and gene sets up to 3,000 genes | Matches the paper's Fig. 2F, which includes very large terms |
 | 12 | `compare_to_paper.py` | Checks the results against tables copied from the paper | Automates the comparison with the original authors |
@@ -313,7 +314,7 @@ The top five pathways are all GPCR signalling (*Signaling by GPCR*, *GPCR ligand
 
 ![Paper vs our fold changes](akap11_go_bp_results/11_paper_vs_our_fold_change.png)
 
-**Verdict rules** (written in `compare_to_paper.py`): totals within 20% → similar; ≥ 80% of genes in the same direction → agree; ≥ 70% of the paper's ORA pathways significant → agree; ribosome terms mostly down → agree.
+**Verdict rules** (set in `settings.py`, PART 7, each with its reason): totals within 20% → similar; ≥ 80% of genes in the same direction → agree; ≥ 70% of the paper's ORA pathways significant → agree; the paper's headline GSEA terms (ribosome/translation, defined in `paper_reference/paper_info.tsv`) mostly down → agree.
 
 **Missing genes:** five of the paper's top 60 genes aren't in this dataset. C5orf17, ZBED6CL, C9orf64 and LINC02302 were renamed between Ensembl 104 (paper) and GENCODE v47 (here); for example, C9orf64 is now *QNG1*. FRG1DP has zero reads in all six samples.
 
@@ -339,7 +340,7 @@ The top five pathways are all GPCR signalling (*Signaling by GPCR*, *GPCR ligand
 
 | Panel | Our file | Status | Main reason for any difference |
 |---|---|---|---|
-| Fig. 1B, AKAP11 per clone | `12_fig1B_akap11_relative.png` | Reproduced with differences | RNA-seq counts the whole gene, including the edited copy; the paper's qPCR measures only the targeted exon 7. Both show AKAP11 lower in every clone and highest in clone 20 |
+| Fig. 1B, AKAP11 per clone | `12_fig1B_target_gene_relative.png` | Reproduced with differences | RNA-seq counts the whole gene, including the edited copy; the paper's qPCR measures only the targeted exon 7. Both show AKAP11 lower in every clone and highest in clone 20 |
 | Fig. 1C, Western blot | — | Not reproducible from RNA-seq | Measures protein |
 | Fig. 1D, immunostaining | — | Not reproducible from RNA-seq | Microscope images |
 | Fig. 2A, volcano plot | `12_fig2A_volcano.png` | Reproduced with differences | DESeq2 gives much smaller p-values for the strongest genes than limma-voom's robust fit (y-axis up to ~72 vs ~7) |
@@ -352,7 +353,7 @@ The top five pathways are all GPCR signalling (*Signaling by GPCR*, *GPCR ligand
 
 <table>
 <tr>
-<td><img src="akap11_go_bp_results/12_fig1B_akap11_relative.png" alt="Fig 1B"></td>
+<td><img src="akap11_go_bp_results/12_fig1B_target_gene_relative.png" alt="Fig 1B"></td>
 <td><img src="akap11_go_bp_results/12_fig2B_deg_counts.png" alt="Fig 2B"></td>
 </tr>
 <tr>
@@ -377,10 +378,12 @@ All files are written to the results folder, numbered by step.
 | `04_sample_correlation.png` | Sample-to-sample correlations |
 | `05_volcano.png`, `05_volcano_labels.tsv` | Volcano plot and its labeled genes |
 | `06_ma.png` | MA plot |
-| `07_de_heatmap.png` | Heatmap of the top significant genes |
+| `07_de_heatmap.png` | Clustered heatmap of the top 25 down and top 25 up genes (genes as rows) |
+| `07_de_heatmap_wide.png` | The same heatmap turned sideways (genes as columns), sized for 16:9 slides |
 | `08_target_gene.png`, `08_target_gene_results.tsv` | The optional gene |
 | `09_gsea_gene_ranking.rnk` | The ranked gene list used for GSEA |
-| `09_gsea_pathways.tsv`, `09_gsea_pathways.png` | GSEA results. Positive NES = higher in KO |
+| `09_gsea_pathways.tsv`, `09_gsea_pathways.png` | GSEA results and summary bar plot. Positive NES = higher in KO |
+| `09_gsea_enrichment_plots.png` | Classic GSEA enrichment plots (running score, gene positions, ranked list) for the top 3 terms in each direction |
 | `10_reactome_ora.tsv`, `10_reactome_ora.png` | Reactome ORA results |
 | `11_comparison_with_paper.md` | **Short report comparing these results with the paper** |
 | `11_paper_gene_comparison.tsv` | The paper's top 60 genes, gene by gene |
@@ -393,7 +396,19 @@ All files are written to the results folder, numbered by step.
 
 ## Settings
 
-Every cutoff and option is in [`settings.py`](settings.py), each with a comment. No other file needs editing.
+Every cutoff, option, label, color and file name is in [`settings.py`](settings.py), each with a comment explaining why that value was chosen. No other file needs editing.
+
+**No hard-coded values.** The analysis scripts don't contain any typed-in cutoffs, sample names, group names, gene names, colors or file names:
+
+- Analysis choices (cutoffs, gene set collections, verdict rules, colors, output file names) are in `settings.py`.
+- The group names (`WT`, `KO`) and the gene to plot (`AKAP11`) are typed on the command line.
+- Facts copied from the paper (its numbers, its sample order and labels, its methods, its citation, the gene in Fig. 1B) are in the files of [`paper_reference/`](paper_reference/).
+- Every number, gene name and sample name in the two reports (`11_…md`, `12_…md`) is filled in from the results when the code runs, and sentences that say "matches" or "differs" are only written when the data show it.
+- Axis limits are worked out from the data, and table sizes (e.g. the 30 genes per side in Fig. 2D) follow the size of the paper's tables.
+
+The only numbers left in the scripts are purely visual (figure sizes, font and dot sizes, line widths), which change how a plot looks but never what it shows; each is commented where it is used. Column names produced by PyDESeq2 and GSEApy (`padj`, `NES`, ...) are fixed by those tools.
+
+The main settings:
 
 | Setting | Default | What it controls |
 |---|---|---|
@@ -401,11 +416,13 @@ Every cutoff and option is in [`settings.py`](settings.py), each with a comment.
 | `fdr_cutoff` | 0.05 | Maximum adjusted p-value for a significant gene |
 | `fold_change_cutoff` | 1.0 | Minimum absolute log2 fold change (1 = twofold) |
 | `volcano_labels` | 8 | Gene names shown on each side of the volcano plot |
-| `heatmap_genes` | 25 | Genes in the heatmap |
+| `heatmap_genes`, `heatmap_balanced` | 50, `True` | Genes in the heatmap; `True` = half down, half up |
+| `cluster_metric`, `cluster_method` | `"euclidean"`, `"average"` | How the heatmaps cluster genes and samples |
 | `gsea_gene_sets` | `"GO_Biological_Process_2025"` | GSEA collection (an Enrichr name or a local `.gmt`) |
 | `gsea_collection_label` | `"GO Biological Process"` | Name in the GSEA plot title |
 | `gsea_min_size`, `gsea_max_size` | 15, 500 | Size limits for GSEA gene sets |
-| `gsea_top` | 8 | Terms shown in each direction in the GSEA plot |
+| `gsea_top` | 8 | Terms shown in each direction in the GSEA bar plot |
+| `gsea_enrichment_plot_terms` | 3 | Terms per direction in the GSEA enrichment plots |
 | `permutations`, `seed` | 1000, 42 | GSEA shuffles, and the seed that makes them repeatable |
 | `ora_gene_sets` | `"reactome_human.gmt"` | Pathway file for ORA |
 | `ora_min_size`, `ora_max_size` | 2, 2000 | Size limits for ORA pathways (ShinyGO's defaults) |
@@ -414,6 +431,16 @@ Every cutoff and option is in [`settings.py`](settings.py), each with a comment.
 | `paper_gsea_gene_sets` | `"GO_Molecular_Function_2025"` | Collection for the paper-style GSEA |
 | `paper_gsea_min_size`, `paper_gsea_max_size` | 15, 3000 | Size limits for the paper-style GSEA |
 | `gene_id_column`, `gene_name_column` | `"gene_id"`, `"gene_name"` | Column names in the count table |
+| `sample_column`, `condition_column` | `"sample"`, `"condition"` | Column names in the sample sheet |
+| `min_replicates_per_group` | 2 | Fewest samples a group may have (the statistical minimum) |
+| `higher_label`, `lower_label`, `not_significant_label` | `"Higher in comparison"`, … | The three direction labels every gene gets |
+| `heatmap_z_limit` | 2 | Where the heatmap colors stop (±2 z-scores) |
+| `ora_collection_label`, `paper_gsea_collection_label` | `"Reactome"`, `"GO Molecular Function"` | Readable collection names for titles and reports |
+| `term_id_markers` | `[" R-HSA-", "(GO:"]` | Database IDs cut off term names before matching and plotting |
+| `similar_total_percent`, `agree_direction_percent`, `agree_ora_percent` | 20, 80, 70 | Verdict rules for the comparison with the paper |
+| `reference_color`, `comparison_color`, … | `"steelblue"`, `"firebrick"`, … | Plot colors (PART 4 and PART 8) |
+| `image_resolution` | 200 | dpi of every saved figure |
+| `*_file` (PART 9 and 10) | e.g. `"02_differential_expression.tsv"` | Every input reference file and output file name |
 
 ---
 
@@ -433,7 +460,7 @@ Suggested reading order:
 | 6 | `plot_pca.py` | Sample-level QC |
 | 7 | `plot_volcano.py`, `plot_ma.py` | Gene-level plots |
 | 8 | `plot_expression_heatmap.py`, `plot_target_gene.py` | Heatmap and single-gene plot |
-| 9 | `run_gsea.py`, `plot_pathways.py` | GSEA |
+| 9 | `run_gsea.py`, `plot_pathways.py`, `plot_gsea_enrichment.py` | GSEA |
 | 10 | `run_ora.py`, `plot_ora.py` | ORA, including a hand-written Benjamini–Hochberg correction |
 | 11 | `run_paper_gsea.py` | The second, paper-style GSEA |
 | 12 | `compare_to_paper.py` | The automatic comparison |
