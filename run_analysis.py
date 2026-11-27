@@ -19,7 +19,8 @@ WHAT THIS FILE DOES
         5. plot_expression_heatmap -> heatmap of the top genes
         6. plot_target_gene   -> bar plot for one gene (optional)
         7. run_gsea           -> gene set enrichment analysis (GSEA)
-        8. plot_pathways      -> bar plot of the top GO terms
+        8. plot_pathways      -> bar plot of the top GO terms, and
+           plot_gsea_enrichment -> classic GSEA enrichment plots
         9. run_ora            -> Reactome over-representation analysis
        10. plot_ora           -> bar plot of the top Reactome pathways
        11. run_paper_gsea     -> a second GSEA set up like the paper's
@@ -81,6 +82,7 @@ from plot_expression_heatmap import plot_expression_heatmap
 from plot_target_gene import plot_target_gene
 from run_gsea import run_gsea
 from plot_pathways import plot_pathways
+from plot_gsea_enrichment import plot_gsea_enrichment
 from run_ora import run_ora
 from plot_ora import plot_ora
 from compare_to_paper import compare_to_paper
@@ -88,9 +90,11 @@ from run_paper_gsea import run_paper_gsea
 from plot_paper_figures import plot_paper_figures
 
 # A few settings from settings.py.
-from settings import heatmap_genes            # how many genes in the heatmap (25)
+from settings import heatmap_genes            # how many genes in the heatmap (50)
 from settings import gsea_gene_sets           # which GO collection GSEA tests
 from settings import paper_reference_folder   # where the paper's numbers are
+from settings import reference_color          # the color of the reference group (WT)
+from settings import comparison_color         # the color of the comparison group (KO)
 
 
 # ===================================================================
@@ -158,11 +162,13 @@ output.mkdir(parents=True, exist_ok=True)
 sns.set_theme(style="whitegrid")
 
 # Pick one color per group, in a dictionary: group name -> color.
-# Every plot uses these same colors, so WT is always blue and KO is
-# always red.
+# Every plot uses this same dictionary, so WT is always blue and KO is
+# always red. The colors themselves come from settings.py; the group
+# names come from what the user typed, so nothing here is tied to "WT"
+# or "KO".
 colors = {}
-colors[reference_group] = "steelblue"   # WT = blue
-colors[comparison_group] = "firebrick"  # KO = red
+colors[reference_group] = reference_color     # e.g. "WT" -> "steelblue"
+colors[comparison_group] = comparison_color   # e.g. "KO" -> "firebrick"
 
 
 # ===================================================================
@@ -205,8 +211,9 @@ plot_pca(count_file, transformed, metadata, colors, output)
 # Volcano plot (05_); this also makes the MA plot (06_).
 plot_volcano(results, reference_group, comparison_group, colors, output)
 
-# Heatmap of the top genes (07_).
-plot_expression_heatmap(results, transformed, heatmap_genes, output)
+# Clustered heatmap of the top genes (07_). It gets the sample groups
+# and colors too, to draw a WT/KO color bar above the columns.
+plot_expression_heatmap(results, transformed, metadata, colors, heatmap_genes, output)
 
 # Bar plot for one gene (08_), but only if the user asked for one
 # (and didn't just type an empty word, "").
@@ -220,11 +227,17 @@ if target_gene is not None and target_gene != "":
 
 # gsea_gene_sets comes from settings.py. It says which GO collection
 # to test, for example "GO_Biological_Process_2025".
-# run_gsea() saves 09_gsea_pathways.tsv and gives back the table.
-pathways = run_gsea(results, gsea_gene_sets, output)
+# run_gsea() saves 09_gsea_pathways.tsv and gives back two things:
+#   pathways   -> the results table
+#   enrichment -> GSEApy's full result (with each term's curve)
+pathways, enrichment = run_gsea(results, gsea_gene_sets, output)
 
-# Bar plot of the top terms (09_ png).
+# Bar plot of the top terms (09_gsea_pathways.png).
 plot_pathways(pathways, reference_group, comparison_group, colors, output)
+
+# Classic GSEA enrichment plots of the top terms in each direction
+# (09_gsea_enrichment_plots.png).
+plot_gsea_enrichment(pathways, enrichment, reference_group, comparison_group, output)
 
 
 # ===================================================================
@@ -258,8 +271,9 @@ if reference_folder.exists():
     compare_to_paper(output, reference_folder)
 
     # Redraw the paper's figures and explain any differences
-    # (12_ files).
-    plot_paper_figures(output, reference_folder)
+    # (12_ files). It needs the two group names so it knows which
+    # samples are the reference (WT) and which the comparison (KO).
+    plot_paper_figures(output, reference_folder, reference_group, comparison_group)
 else:
     print("No paper_reference folder found, so the comparison with the paper was skipped.")
 

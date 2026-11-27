@@ -48,6 +48,8 @@ PYTHON IDEAS USED IN THIS FILE
 import matplotlib.pyplot as plt
 
 from save_plot import save_plot
+from settings import cutoff_line_color   # gray
+from settings import ma_plot_file        # "06_ma.png"
 
 
 def plot_ma(plot_data, direction_colors, direction_labels, output):
@@ -97,9 +99,11 @@ def plot_ma(plot_data, direction_colors, direction_labels, output):
     ax.set_title("MA plot")
 
     # A flat line at 0 means "no change": KO and WT the same.
-    ax.axhline(0, color="gray", linewidth=0.8)
+    # (0 is not a setting: it is the definition of "no change" on a
+    # log scale, because log2(1) = 0.)
+    ax.axhline(0, color=cutoff_line_color, linewidth=0.8)
 
     # Show the legend, without a box around it.
     ax.legend(frameon=False)
 
-    save_plot(fig, output / "06_ma.png")
+    save_plot(fig, output / ma_plot_file)

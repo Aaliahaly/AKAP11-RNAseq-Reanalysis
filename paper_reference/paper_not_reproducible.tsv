@@ -1,0 +1,4 @@
+panel	what	reason
+Fig. 1C	Protein (Western blot)	Not reproducible from RNA-seq: it measures protein on a gel. The closest RNA-seq evidence is Fig. 1B (the knocked-out gene's RNA in every clone).
+Fig. 1D	Neuron images (immunostaining)	Not reproducible from RNA-seq: these are microscope images. The paper's cell-type deconvolution of the RNA-seq data, which found neurons predominant in both groups, is the sequencing-based counterpart.
+Fig. 3A–E	DNA methylation (WGBS)	Not reproducible from this data: Fig. 3 comes from whole-genome bisulfite sequencing, a different experiment with its own FASTQ files and pipeline (for example nf-core/methylseq). Fig. 3E also needs those methylation results, because it uses genes that change in both expression and methylation. It is outside this RNA-seq project, but would be the natural next step.

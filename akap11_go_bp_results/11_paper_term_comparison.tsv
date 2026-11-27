@@ -9,23 +9,23 @@ Reactome ORA (Fig. 2E)	Class A/1 (Rhodopsin-like receptors)	Class A/1 (Rhodopsin
 Reactome ORA (Fig. 2E)	Peptide ligand-binding receptors	Peptide Ligand-Binding Receptors R-HSA-375276	9.0	0.0009293005764727			True
 Reactome ORA (Fig. 2E)	ECM proteoglycans	ECM Proteoglycans R-HSA-3000178	111.0	1.0			False
 Reactome ORA (Fig. 2E)	Complement cascade	Complement Cascade R-HSA-166658	58.0	0.5940236642653894			False
-GSEA GO Molecular Function (Fig. 2F)	STRUCTURAL CONSTITUENT OF RIBOSOME	not tested			Lower in comparison		False
-GSEA GO Molecular Function (Fig. 2F)	RRNA BINDING	rRNA Binding (GO:0019843)		0.0116578010040479	Lower in comparison	Lower in comparison	True
-GSEA GO Molecular Function (Fig. 2F)	RNA BINDING	not tested			Lower in comparison		False
-GSEA GO Molecular Function (Fig. 2F)	SEQUENCE SPECIFIC DNA BINDING	Sequence-Specific DNA Binding (GO:0043565)		0.017185206652519	Lower in comparison	Lower in comparison	True
-GSEA GO Molecular Function (Fig. 2F)	DNA BINDING TRANSCRIPTION ACTIVATOR ACTIVITY	not tested			Lower in comparison		False
-GSEA GO Molecular Function (Fig. 2F)	DNA BINDING TRANSCRIPTION FACTOR ACTIVITY	not tested			Lower in comparison		False
-GSEA GO Molecular Function (Fig. 2F)	REGULATORY REGION NUCLEIC ACID BINDING	not tested			Lower in comparison		False
-GSEA GO Molecular Function (Fig. 2F)	CIS REGULATORY REGION SEQUENCE SPECIFIC DNA BINDING	Cis-Regulatory Region Sequence-Specific DNA Binding (GO:0000987)		0.1406171996971028	Lower in comparison	Lower in comparison	True
-GSEA GO Molecular Function (Fig. 2F)	TRANSCRIPTION REGULATOR ACTIVITY	not tested			Lower in comparison		False
-GSEA GO Molecular Function (Fig. 2F)	STRUCTURAL MOLECULE ACTIVITY	not tested			Lower in comparison		False
-GSEA GO Molecular Function (Fig. 2F)	OXIDOREDUCTASE ACTIVITY	not tested			Higher in comparison		False
-GSEA GO Molecular Function (Fig. 2F)	PDZ DOMAIN BINDING	PDZ Domain Binding (GO:0030165)		0.3197336067317264	Higher in comparison	Higher in comparison	True
-GSEA GO Molecular Function (Fig. 2F)	CYTOKINE ACTIVITY	Cytokine Activity (GO:0005125)		0.3988126488630727	Higher in comparison	Higher in comparison	True
-GSEA GO Molecular Function (Fig. 2F)	PHOSPHOLIPID BINDING	not tested			Higher in comparison		False
-GSEA GO Molecular Function (Fig. 2F)	SH3 DOMAIN BINDING	SH3 Domain Binding (GO:0017124)		0.4475207944871784	Higher in comparison	Higher in comparison	True
-GSEA GO Molecular Function (Fig. 2F)	ACTIN BINDING	Actin Binding (GO:0003779)		0.5697023438642369	Higher in comparison	Higher in comparison	True
-GSEA GO Molecular Function (Fig. 2F)	CALCIUM ION BINDING	Calcium Ion Binding (GO:0005509)		0.4382828652378481	Higher in comparison	Higher in comparison	True
-GSEA GO Molecular Function (Fig. 2F)	PHOSPHATIDYLINOSITOL BINDING	Phosphatidylinositol Binding (GO:0035091)		0.4942702493545753	Higher in comparison	Higher in comparison	True
-GSEA GO Molecular Function (Fig. 2F)	LIPID BINDING	not tested			Higher in comparison		False
-GSEA GO Molecular Function (Fig. 2F)	SIGNALING RECEPTOR BINDING	not tested			Higher in comparison		False
+GSEA GO_Molecular_Function_2025 (Fig. 2F)	STRUCTURAL CONSTITUENT OF RIBOSOME	not tested			Lower in comparison		False
+GSEA GO_Molecular_Function_2025 (Fig. 2F)	RRNA BINDING	rRNA Binding (GO:0019843)		0.0116578010040479	Lower in comparison	Lower in comparison	True
+GSEA GO_Molecular_Function_2025 (Fig. 2F)	RNA BINDING	not tested			Lower in comparison		False
+GSEA GO_Molecular_Function_2025 (Fig. 2F)	SEQUENCE SPECIFIC DNA BINDING	Sequence-Specific DNA Binding (GO:0043565)		0.017185206652519	Lower in comparison	Lower in comparison	True
+GSEA GO_Molecular_Function_2025 (Fig. 2F)	DNA BINDING TRANSCRIPTION ACTIVATOR ACTIVITY	not tested			Lower in comparison		False
+GSEA GO_Molecular_Function_2025 (Fig. 2F)	DNA BINDING TRANSCRIPTION FACTOR ACTIVITY	not tested			Lower in comparison		False
+GSEA GO_Molecular_Function_2025 (Fig. 2F)	REGULATORY REGION NUCLEIC ACID BINDING	not tested			Lower in comparison		False
+GSEA GO_Molecular_Function_2025 (Fig. 2F)	CIS REGULATORY REGION SEQUENCE SPECIFIC DNA BINDING	Cis-Regulatory Region Sequence-Specific DNA Binding (GO:0000987)		0.1406171996971028	Lower in comparison	Lower in comparison	True
+GSEA GO_Molecular_Function_2025 (Fig. 2F)	TRANSCRIPTION REGULATOR ACTIVITY	not tested			Lower in comparison		False
+GSEA GO_Molecular_Function_2025 (Fig. 2F)	STRUCTURAL MOLECULE ACTIVITY	not tested			Lower in comparison		False
+GSEA GO_Molecular_Function_2025 (Fig. 2F)	OXIDOREDUCTASE ACTIVITY	not tested			Higher in comparison		False
+GSEA GO_Molecular_Function_2025 (Fig. 2F)	PDZ DOMAIN BINDING	PDZ Domain Binding (GO:0030165)		0.3197336067317264	Higher in comparison	Higher in comparison	True
+GSEA GO_Molecular_Function_2025 (Fig. 2F)	CYTOKINE ACTIVITY	Cytokine Activity (GO:0005125)		0.3988126488630727	Higher in comparison	Higher in comparison	True
+GSEA GO_Molecular_Function_2025 (Fig. 2F)	PHOSPHOLIPID BINDING	not tested			Higher in comparison		False
+GSEA GO_Molecular_Function_2025 (Fig. 2F)	SH3 DOMAIN BINDING	SH3 Domain Binding (GO:0017124)		0.4475207944871784	Higher in comparison	Higher in comparison	True
+GSEA GO_Molecular_Function_2025 (Fig. 2F)	ACTIN BINDING	Actin Binding (GO:0003779)		0.5697023438642369	Higher in comparison	Higher in comparison	True
+GSEA GO_Molecular_Function_2025 (Fig. 2F)	CALCIUM ION BINDING	Calcium Ion Binding (GO:0005509)		0.4382828652378481	Higher in comparison	Higher in comparison	True
+GSEA GO_Molecular_Function_2025 (Fig. 2F)	PHOSPHATIDYLINOSITOL BINDING	Phosphatidylinositol Binding (GO:0035091)		0.4942702493545753	Higher in comparison	Higher in comparison	True
+GSEA GO_Molecular_Function_2025 (Fig. 2F)	LIPID BINDING	not tested			Higher in comparison		False
+GSEA GO_Molecular_Function_2025 (Fig. 2F)	SIGNALING RECEPTOR BINDING	not tested			Higher in comparison		False

@@ -61,6 +61,9 @@ from scipy.stats import hypergeom
 from settings import ora_gene_sets    # "reactome_human.gmt"
 from settings import ora_min_size     # 2
 from settings import ora_max_size     # 2000
+from settings import fdr_cutoff       # 0.05
+from settings import not_significant_label   # "Below thresholds"
+from settings import ora_results_file        # "10_reactome_ora.tsv"
 
 
 def read_gmt(gmt_file):
@@ -140,7 +143,7 @@ def run_ora(results, output):
 
     # Our SIGNIFICANT genes: the ones that passed both cutoffs in
     # fit_model.py.
-    is_significant = results["direction"] != "Below thresholds"
+    is_significant = results["direction"] != not_significant_label
     significant_genes = results[is_significant]
 
     significant = set()
@@ -186,8 +189,9 @@ def run_ora(results, output):
         # (how many red marbles there are).
         K = len(unique_genes_in_background)
 
-        # Skip pathways that are too small or too big. "continue"
-        # jumps straight to the next pathway.
+        # Skip pathways that are too small or too big (ora_min_size
+        # and ora_max_size in settings.py). "continue" jumps straight
+        # to the next pathway.
         if K < ora_min_size or K > ora_max_size:
             continue
 
@@ -278,15 +282,16 @@ def run_ora(results, output):
     ]
 
     # Save the table. index=False leaves out pandas' row numbers.
-    ora.to_csv(output / "10_reactome_ora.tsv", sep="\t", index=False)
+    ora.to_csv(output / ora_results_file, sep="\t", index=False)
 
-    # Count the pathways with FDR below 0.05:
-    #   ora["fdr"] < 0.05  -> True/False per pathway
-    #   .sum()             -> counts the Trues (True counts as 1)
-    passes_fdr = ora["fdr"] < 0.05
+    # Count the pathways with FDR below the cutoff (fdr_cutoff, 0.05 in
+    # settings.py, the same cutoff used for genes):
+    #   ora["fdr"] < fdr_cutoff  -> True/False per pathway
+    #   .sum()                   -> counts the Trues (True counts as 1)
+    passes_fdr = ora["fdr"] < fdr_cutoff
     number_passing = passes_fdr.sum()
 
-    print(f"ORA: {number_passing} Reactome pathways have FDR < 0.05.")
+    print(f"ORA: {number_passing} pathways have FDR < {fdr_cutoff}.")
 
     return ora
 

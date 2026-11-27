@@ -1,4 +1,4 @@
-direction	rank	gene_id	gene	log2FoldChange	padj	in_paper_top_30
+direction	rank	gene_id	gene	log2FoldChange	padj	in_paper_list
 down	1	ENSG00000187553.10	CYP26C1	-8.996	8.81e-73	True
 down	2	ENSG00000180818.5	HOXC10	-6.28	2.76e-33	False
 down	3	ENSG00000122592.8	HOXA7	-10.95	4.17e-26	False

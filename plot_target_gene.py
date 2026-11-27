@@ -39,6 +39,9 @@ PYTHON IDEAS USED IN THIS FILE
 import matplotlib.pyplot as plt
 
 from save_plot import save_plot
+from settings import condition_column            # "condition"
+from settings import target_gene_plot_file       # "08_target_gene.png"
+from settings import target_gene_results_file    # "08_target_gene_results.tsv"
 
 
 def plot_target_gene(results, normalized, metadata, symbol, colors, output):
@@ -67,7 +70,7 @@ def plot_target_gene(results, normalized, metadata, symbol, colors, output):
 
     # Save the test results of every matching row: fold change,
     # p-value, adjusted p-value, and so on.
-    matches.to_csv(output / "08_target_gene_results.tsv", sep="\t")
+    matches.to_csv(output / target_gene_results_file, sep="\t")
 
     # ===============================================================
     # STEP 2: Get the values and colors for the bars
@@ -89,7 +92,7 @@ def plot_target_gene(results, normalized, metadata, symbol, colors, output):
     # Look up each sample's bar color from its group.
     # .map(colors) replaces each value using the colors dictionary:
     #   "WT" -> "steelblue",  "KO" -> "firebrick"
-    bar_colors = metadata["condition"].map(colors)
+    bar_colors = metadata[condition_column].map(colors)
 
     # ===============================================================
     # STEP 3: Draw the bars and save the figure
@@ -111,4 +114,4 @@ def plot_target_gene(results, normalized, metadata, symbol, colors, output):
     # "AKAP11 expression (ENSG00000023516.9)".
     ax.set_title(f"{symbol} expression ({gene_id})")
 
-    save_plot(fig, output / "08_target_gene.png")
+    save_plot(fig, output / target_gene_plot_file)

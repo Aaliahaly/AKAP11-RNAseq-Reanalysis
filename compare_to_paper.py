@@ -4,48 +4,57 @@ compare_to_paper.py
 ===================================================================
 
 WHAT THIS FILE DOES
-    It checks our results against the published paper, automatically:
-
-        Farhangdoost et al. (2025) Molecular Psychiatry 30:4543-4557
-        https://doi.org/10.1038/s41380-025-03040-x
+    It checks our results against the published paper, automatically.
+    (Which paper, and all its numbers, are read from the files in the
+    paper_reference folder; for this project that is
+    Farhangdoost et al. (2025) Molecular Psychiatry 30:4543-4557.)
 
     It reads small tables copied from the paper's Figure 2 (in the
     paper_reference folder) and answers four questions:
 
       1. Did we find a similar NUMBER of significant genes?    (Fig. 2B)
-      2. Do the paper's top 60 genes change in the SAME
+      2. Do the paper's top genes change in the SAME
          DIRECTION in our results, and by a similar amount?    (Fig. 2D)
-      3. Did our Reactome ORA find the paper's top pathways?   (Fig. 2E)
+      3. Did our ORA find the paper's top pathways?            (Fig. 2E)
       4. Did our GSEA find the paper's GO terms, going the
          same way?                                             (Fig. 2F)
 
 WHERE IT FITS
-    Step 11. run_analysis.py calls it near the end, if the
+    Step 12. run_analysis.py calls it near the end, if the
     paper_reference folder exists. You can also run it on its own, on
     a results folder you already have:
 
         python3 compare_to_paper.py akap11_go_bp_results
 
 INPUTS
-    output            the results folder (it reads 02_, 09_, 10_ and,
-                      if present, 12_fig2F_ files from it)
+    output            the results folder (it reads the 01_, 02_, 09_,
+                      10_ and, if present, 12_fig2F_ files from it)
     reference_folder  the paper_reference folder
 
-OUTPUT FILES
+OUTPUT FILES (names set in settings.py, PART 10)
     11_comparison_with_paper.md      a short report you can read
     11_paper_gene_comparison.tsv     question 2, gene by gene
     11_paper_term_comparison.tsv     questions 3 and 4, term by term
     11_paper_vs_our_fold_change.png  question 2 as a scatter plot
 
 HOW THE "VERDICTS" ARE DECIDED (rules of thumb)
-    question 1: totals within 20% of each other -> "similar"
-    question 2: at least 80% same direction     -> "agree"
-    question 3: at least 70% of the paper's pathways
-                significant in ours             -> "agree"
-    question 4: ribosome/protein-synthesis terms mostly down
-                in the knockout                 -> "agree"
+    The cutoffs are in settings.py (PART 7), each with its reason:
+    question 1: totals within similar_total_percent (20%)  -> "similar"
+    question 2: at least agree_direction_percent (80%) of
+                the paper's genes going the same way       -> "agree"
+    question 3: at least agree_ora_percent (70%) of the
+                paper's pathways significant in ours       -> "agree"
+    question 4: the paper's headline GSEA terms (for this
+                paper: ribosome / protein synthesis) mostly
+                going the paper's way                      -> "agree"
                 (and, if tested, at least 80% of the paper's GO
-                terms going the same way        -> "agree")
+                terms going the same way                   -> "agree")
+
+WHY NO NUMBER FROM THE PAPER IS TYPED IN THIS FILE
+    Every number from the paper comes from a file in paper_reference,
+    and every sentence in the report that mentions a number fills it
+    in from the data. If the data or a setting changes, the report
+    changes with it; it can never show an old number.
 
 PYTHON IDEAS USED IN THIS FILE
     Path(...)        a file or folder path; "/" joins a folder and a
@@ -53,6 +62,9 @@ PYTHON IDEAS USED IN THIS FILE
     np.nan           NumPy's "missing value" marker
     "x" in text      True if the text contains "x"
     ", ".join(list)  glue a list of texts into one, with ", " between
+    text.format(**dictionary)
+                     fill in the {names} in a text from a dictionary:
+                     "{a} and {b}".format(**{"a": 1, "b": 2}) -> "1 and 2"
     if __name__ == "__main__":
                      code under this line runs only when you start
                      this file directly from Terminal
@@ -71,7 +83,155 @@ import pandas as pd
 from adjustText import adjust_text
 
 from save_plot import save_plot
-from settings import fdr_cutoff    # 0.05
+
+# Cutoffs and labels shared with the rest of the analysis.
+from settings import fdr_cutoff                  # 0.05
+from settings import min_count                   # 10
+from settings import min_samples                 # None -> smaller group size
+from settings import condition_column            # "condition"
+from settings import higher_label                # "Higher in comparison"
+from settings import lower_label                 # "Lower in comparison"
+from settings import gsea_gene_sets              # our main GSEA collection
+from settings import paper_gsea_gene_sets        # the paper-style GSEA collection
+from settings import ora_gene_sets               # our ORA pathway file
+from settings import ora_collection_label        # "Reactome"
+from settings import term_id_markers             # [" R-HSA-", "(GO:"]
+
+# The verdict rules (PART 7 of settings.py).
+from settings import similar_total_percent       # 20
+from settings import agree_direction_percent     # 80
+from settings import agree_ora_percent           # 70
+from settings import report_examples             # 3
+from settings import min_points_for_correlation  # 3
+
+# Colors for the scatter plot.
+from settings import neutral_color               # "slategray"
+from settings import cutoff_line_color           # gray
+from settings import label_line_color            # dark gray
+
+# The files in the paper_reference folder (PART 9 of settings.py).
+from settings import paper_info_file
+from settings import paper_summary_file
+from settings import paper_methods_file
+from settings import paper_genes_file
+from settings import paper_ora_file
+from settings import paper_gsea_file
+
+# Our own results files, read and written here (PART 10).
+from settings import sample_qc_file
+from settings import differential_expression_file
+from settings import gsea_results_file
+from settings import ora_results_file
+from settings import paper_gsea_results_file
+from settings import comparison_report_file
+from settings import gene_comparison_file
+from settings import term_comparison_file
+from settings import fold_change_comparison_plot_file
+
+
+# ###################################################################
+# Helper functions for reading the paper_reference files
+# (plot_paper_figures.py uses them too, so they live here once)
+# ###################################################################
+
+def read_paper_info(reference_folder):
+    """Read paper_info.tsv into a dictionary of field -> text.
+
+    The file has two columns, "field" and "value", for example:
+        short_citation   Farhangdoost et al. (2025)
+        fig1b_gene       AKAP11
+    and we return {"short_citation": "Farhangdoost et al. (2025)", ...}
+    """
+
+    # dtype=str reads every value as text, so nothing is turned into a
+    # number by accident.
+    table = pd.read_csv(Path(reference_folder) / paper_info_file, sep="\t", dtype=str)
+
+    info = {}
+    for row_number, row in table.iterrows():
+        info[row["field"]] = row["value"]
+    return info
+
+
+def read_paper_numbers(reference_folder):
+    """Read paper_summary.tsv into a dictionary of measure -> number.
+
+    For example {"significant_genes": 849.0, "fdr_cutoff": 0.05, ...}.
+    Every value is read as a decimal number (float); a count like 849
+    becomes 849.0, and int() turns it back into 849 where needed.
+    """
+
+    table = pd.read_csv(Path(reference_folder) / paper_summary_file, sep="\t")
+
+    numbers = {}
+    for row_number, row in table.iterrows():
+        numbers[row["measure"]] = float(row["value"])
+    return numbers
+
+
+def paper_citation(info):
+    """Build the citation line used at the top of both reports."""
+
+    # For example:
+    #   "Farhangdoost et al. (2025) Molecular Psychiatry 30:4543-4557,
+    #    https://doi.org/10.1038/s41380-025-03040-x"
+    return info["short_citation"] + " " + info["full_citation"] + ", " + info["doi_link"]
+
+
+def read_methods(output, reference_folder):
+    """Read paper_methods.tsv and fill in our side from settings.py.
+
+    The "this_project" column can contain names in curly brackets,
+    such as {min_count}. These are filled in here from settings.py and
+    from our results, so the table always shows the values that were
+    really used. Returns a dictionary:
+        step -> {"paper": ..., "this_project": ..., "affects_gene_list": "yes" or "no"}
+    """
+
+    # ---------------------------------------------------------------
+    # The values that can be filled in.
+    # ---------------------------------------------------------------
+
+    # How many genes went into the model = rows of the results table.
+    results = pd.read_csv(Path(output) / differential_expression_file, sep="\t", index_col=0)
+    genes_tested = len(results)
+
+    # How many samples a gene had to pass in. If min_samples is None
+    # in settings.py, read_counts.py used the size of the smaller
+    # group, so we work that out again from the sample table.
+    if min_samples is None:
+        samples = pd.read_csv(Path(output) / sample_qc_file, sep="\t", index_col=0)
+        # .value_counts() counts how many samples are in each group,
+        # e.g. WT 3, KO 3; .min() takes the smaller count.
+        samples_needed = samples[condition_column].value_counts().min()
+    else:
+        samples_needed = min_samples
+
+    values = {
+        "min_count": min_count,
+        "min_samples": samples_needed,
+        "genes_tested": genes_tested,
+        "gsea_gene_sets": gsea_gene_sets,
+        "ora_gene_sets": ora_gene_sets,
+    }
+
+    # ---------------------------------------------------------------
+    # Read the table and fill in the {names}.
+    # ---------------------------------------------------------------
+
+    table = pd.read_csv(Path(reference_folder) / paper_methods_file, sep="\t", dtype=str)
+
+    methods = {}
+    for row_number, row in table.iterrows():
+        # "...{min_count}...".format(**values) swaps each {name} for
+        # its value from the dictionary. Text without { } is unchanged.
+        ours = row["this_project"].format(**values)
+        methods[row["step"]] = {
+            "paper": row["paper"],
+            "this_project": ours,
+            "affects_gene_list": row["affects_gene_list"],
+        }
+    return methods
 
 
 # ###################################################################
@@ -99,19 +259,20 @@ def simplify_name(name):
     # Make sure it's text, then make it all lowercase.
     name = str(name).lower()
 
-    # Remove the database ID at the end.
+    # Remove the database ID at the end. The ID markers (" R-HSA-",
+    # "(GO:") are listed in settings.py. We lowercase each marker too,
+    # because the name is now lowercase.
     # text.split(x) cuts the text at x and gives a list of the pieces;
     # [0] takes the first piece, i.e. everything BEFORE x.
     #   "structural constituent of ribosome (go:0003735)"
     #   -> "structural constituent of ribosome "
-    if "(go:" in name:
-        name = name.split("(go:")[0]
-    if " r-hsa-" in name:
-        name = name.split(" r-hsa-")[0]
+    for marker in term_id_markers:
+        name = name.split(marker.lower())[0]
 
-    # The paper's GO names start with "go ". Remove those 3 characters.
-    # name[3:] means "the text from character 3 to the end".
-    if name.startswith("go "):
+    # Some collections (MSigDB, used by many papers) start GO names
+    # with "GO_" or "GO ". Remove those 3 characters: name[3:] means
+    # "the text from character 3 to the end".
+    if name.startswith("go ") or name.startswith("go_"):
         name = name[3:]
 
     # Make British and American spellings the same.
@@ -147,6 +308,11 @@ def compare_to_paper(output, reference_folder):
     output = Path(output)
     reference_folder = Path(reference_folder)
 
+    # Facts about the paper (citation, headline finding) and its
+    # numbers, from the paper_reference folder.
+    info = read_paper_info(reference_folder)
+    paper_numbers = read_paper_numbers(reference_folder)
+
     # The report is built as lists of text lines, and written to a
     # Markdown file at the end. It has three parts:
     #
@@ -158,10 +324,9 @@ def compare_to_paper(output, reference_folder):
     # summary_rows holds one entry per check:
     #   [what was checked, the result in words, the verdict]
     title_lines = []
-    title_lines.append("# Comparison with Farhangdoost et al. (2025)")
+    title_lines.append("# Comparison with " + info["short_citation"])
     title_lines.append("")
-    title_lines.append("Paper: Molecular Psychiatry 30:4543-4557, "
-                       "https://doi.org/10.1038/s41380-025-03040-x")
+    title_lines.append("Paper: " + paper_citation(info))
     title_lines.append("")
 
     body_lines = []
@@ -182,7 +347,7 @@ def compare_to_paper(output, reference_folder):
     #                        -> treat ONLY truly empty cells as missing,
     #                           so a gene name like "NA" stays a name
     results = pd.read_csv(
-        output / "02_differential_expression.tsv",
+        output / differential_expression_file,
         sep="\t",
         index_col=0,
         keep_default_na=False,
@@ -197,29 +362,18 @@ def compare_to_paper(output, reference_folder):
     # QUESTION 1: How many significant genes?          (paper Fig. 2B)
     # ===============================================================
 
-    # The paper's numbers. The file has two columns, "measure" and
-    # "value", one row per number:
-    #   significant_genes      849
-    #   lower_in_comparison    421
-    #   higher_in_comparison   428
-    paper_summary = pd.read_csv(reference_folder / "paper_summary.tsv", sep="\t")
-
-    # Turn the table into a dictionary, so we can look a number up by
-    # its name: {"significant_genes": 849, "lower_in_comparison": 421, ...}
-    paper_numbers = {}
-    for row_number, row in paper_summary.iterrows():
-        paper_numbers[row["measure"]] = int(row["value"])
-
-    paper_total = paper_numbers["significant_genes"]
-    paper_lower = paper_numbers["lower_in_comparison"]
-    paper_higher = paper_numbers["higher_in_comparison"]
+    # The paper's numbers, from paper_summary.tsv. int() turns 849.0
+    # into 849, because these are counts of genes.
+    paper_total = int(paper_numbers["significant_genes"])
+    paper_lower = int(paper_numbers["lower_in_comparison"])
+    paper_higher = int(paper_numbers["higher_in_comparison"])
 
     # Our numbers. Comparing the direction column with a label gives
     # True/False per gene; .sum() counts the Trues.
-    is_lower = results["direction"] == "Lower in comparison"
+    is_lower = results["direction"] == lower_label
     our_lower = is_lower.sum()
 
-    is_higher = results["direction"] == "Higher in comparison"
+    is_higher = results["direction"] == higher_label
     our_higher = is_higher.sum()
 
     our_total = our_lower + our_higher
@@ -229,8 +383,9 @@ def compare_to_paper(output, reference_folder):
     # doesn't matter.  |848 - 849| / 849 x 100 = 0.1%
     difference_percent = abs(our_total - paper_total) / paper_total * 100
 
-    # Rule of thumb: within 20% counts as "similar".
-    if difference_percent <= 20:
+    # Rule of thumb (settings.py): within similar_total_percent (20%)
+    # counts as "similar".
+    if difference_percent <= similar_total_percent:
         verdict = "similar"
     else:
         verdict = "different"
@@ -246,7 +401,8 @@ def compare_to_paper(output, reference_folder):
     body_lines.append(f"| Lower in comparison group | {paper_lower} | {our_lower} |")
     body_lines.append(f"| Higher in comparison group | {paper_higher} | {our_higher} |")
     body_lines.append("")
-    body_lines.append(f"The totals differ by {difference_percent:.1f}%.")
+    body_lines.append(f"The totals differ by {difference_percent:.1f}% "
+                      f"(\"similar\" means at most {similar_total_percent}% apart).")
     body_lines.append("")
 
     summary_rows.append([
@@ -259,9 +415,9 @@ def compare_to_paper(output, reference_folder):
     # QUESTION 2: Do the paper's top genes agree with ours? (Fig. 2D)
     # ===============================================================
 
-    # The paper's top 30 down and top 30 up genes, with their log2
-    # fold change and adjusted p-value.
-    paper_genes = pd.read_csv(reference_folder / "paper_degs.tsv", sep="\t")
+    # The paper's top down and top up genes, with their log2 fold
+    # change and adjusted p-value.
+    paper_genes = pd.read_csv(reference_folder / paper_genes_file, sep="\t")
 
     # ---------------------------------------------------------------
     # Prepare our results for looking genes up by name.
@@ -299,9 +455,9 @@ def compare_to_paper(output, reference_folder):
 
         # Which way did the gene change in the paper?
         if paper_fold_change > 0:
-            paper_direction = "Higher in comparison"
+            paper_direction = higher_label
         else:
-            paper_direction = "Lower in comparison"
+            paper_direction = lower_label
 
         # Look the gene up in our results.
         if symbol.upper() in our_genes.index:
@@ -322,8 +478,7 @@ def compare_to_paper(output, reference_folder):
             significant_same_way = our_direction == paper_direction
         else:
             # Not found. The gene may have a different name in our
-            # annotation (GENCODE v47 vs the paper's Ensembl 104), or
-            # it was removed by our low-count filter.
+            # annotation, or it was removed by our low-count filter.
             # np.nan marks the missing numbers.
             found = False
             our_fold_change = np.nan
@@ -347,7 +502,7 @@ def compare_to_paper(output, reference_folder):
 
     # Turn the rows into a table and save it.
     gene_table = pd.DataFrame(gene_rows)
-    gene_table.to_csv(output / "11_paper_gene_comparison.tsv", sep="\t", index=False)
+    gene_table.to_csv(output / gene_comparison_file, sep="\t", index=False)
 
     # ---------------------------------------------------------------
     # Summarize question 2.
@@ -362,21 +517,9 @@ def compare_to_paper(output, reference_folder):
     # Keep only the genes we found (True in the found column).
     found_genes = gene_table[gene_table["found_in_our_results"]]
 
-    # The correlation of the paper's fold changes with ours, for the
-    # genes we found: 1 = perfect agreement, 0 = no relationship.
-    # np.corrcoef() returns a small 2 x 2 grid of correlations:
-    #   [[ paper vs paper,  paper vs ours ],
-    #    [ ours vs paper,   ours vs ours  ]]
-    # The number we want is in row 0, column 1.
-    # A correlation needs at least 3 points to mean anything.
-    if len(found_genes) >= 3:
-        correlation_grid = np.corrcoef(
-            found_genes["paper_log2FoldChange"],
-            found_genes["our_log2FoldChange"],
-        )
-        correlation = correlation_grid[0, 1]
-    else:
-        correlation = np.nan
+    # The correlation of the paper's fold changes with ours (see
+    # fold_change_correlation() below).
+    correlation = fold_change_correlation(found_genes)
 
     # The share of found genes that change in the same direction.
     if number_found > 0:
@@ -384,8 +527,9 @@ def compare_to_paper(output, reference_folder):
     else:
         percent_same_direction = 0
 
-    # Rule of thumb: at least 80% in the same direction = agreement.
-    if percent_same_direction >= 80:
+    # Rule of thumb (settings.py): at least agree_direction_percent
+    # (80%) in the same direction = agreement.
+    if percent_same_direction >= agree_direction_percent:
         verdict = "agree"
     else:
         verdict = "disagree"
@@ -396,7 +540,7 @@ def compare_to_paper(output, reference_folder):
         if row["found_in_our_results"] == False:
             not_found.append(row["gene_name"])
 
-    body_lines.append("## 2. The paper's top 60 genes (paper Fig. 2D)")
+    body_lines.append(f"## 2. The paper's top {number_of_paper_genes} genes (paper Fig. 2D)")
     body_lines.append("")
     body_lines.append(f"- Found in our results: {number_found} of {number_of_paper_genes}")
     body_lines.append(f"- Same direction of change: {number_same_direction} of "
@@ -409,28 +553,34 @@ def compare_to_paper(output, reference_folder):
         body_lines.append(f"- Not found (renamed in our annotation, or removed by "
                           f"our low-count filter): {not_found_text}")
     body_lines.append("")
-    body_lines.append("Gene-by-gene details: `11_paper_gene_comparison.tsv`. "
-                      "Plot: `11_paper_vs_our_fold_change.png`.")
+    body_lines.append(f"Gene-by-gene details: `{gene_comparison_file}`. "
+                      f"Plot: `{fold_change_comparison_plot_file}`.")
     body_lines.append("")
 
     summary_rows.append([
-        "Paper's top 60 genes",
+        f"Paper's top {number_of_paper_genes} genes",
         f"{number_same_direction} of {number_found} found go the same way; "
         f"{number_significant} significant in ours; r = {correlation:.2f}",
         verdict,
     ])
 
     # Draw the scatter plot (function at the bottom of this file).
-    plot_gene_comparison(found_genes, correlation, output)
+    plot_gene_comparison(found_genes, correlation, number_of_paper_genes, output)
 
     # ===============================================================
-    # QUESTION 3: Reactome pathways                    (paper Fig. 2E)
+    # QUESTION 3: ORA pathways                         (paper Fig. 2E)
     # ===============================================================
 
-    # The paper's top 10 Reactome pathways (one column, "term").
-    paper_ora = pd.read_csv(reference_folder / "paper_reactome_ora.tsv", sep="\t")
+    # The paper's top pathways (one column, "term").
+    paper_ora = pd.read_csv(reference_folder / paper_ora_file, sep="\t")
 
-    ora_file = output / "10_reactome_ora.tsv"
+    # The label for these rows in the term table, e.g.
+    # "Reactome ORA (Fig. 2E)". plot_paper_figures.py looks for rows
+    # starting with ora_collection_label.
+    ora_analysis_name = ora_collection_label + " ORA (Fig. 2E)"
+
+    ora_file = output / ora_results_file
+    section_title = f"## 3. {ora_collection_label} pathways (paper Fig. 2E)"
 
     # .exists() is True if the file is there. It might not be, if ORA
     # was skipped.
@@ -471,7 +621,7 @@ def compare_to_paper(output, reference_folder):
                     number_ora_significant = number_ora_significant + 1
 
                 term_rows.append({
-                    "analysis": "Reactome ORA (Fig. 2E)",
+                    "analysis": ora_analysis_name,
                     "paper_term": term,
                     "our_term": ours["Term"],
                     "our_rank": int(ours["rank"]),
@@ -482,7 +632,7 @@ def compare_to_paper(output, reference_folder):
                 })
             else:
                 term_rows.append({
-                    "analysis": "Reactome ORA (Fig. 2E)",
+                    "analysis": ora_analysis_name,
                     "paper_term": term,
                     "our_term": "not tested",
                     "our_rank": np.nan,
@@ -494,14 +644,15 @@ def compare_to_paper(output, reference_folder):
 
         number_paper_ora = len(paper_ora)
 
-        # Rule of thumb: at least 70% of the paper's pathways
-        # significant in ours = agreement.
-        if number_ora_significant >= number_paper_ora * 0.7:
+        # Rule of thumb (settings.py): at least agree_ora_percent (70%)
+        # of the paper's pathways significant in ours = agreement.
+        # "/ 100" turns the percentage into a fraction (70 -> 0.7).
+        if number_ora_significant >= number_paper_ora * agree_ora_percent / 100:
             verdict = "agree"
         else:
             verdict = "partly agree"
 
-        body_lines.append("## 3. Reactome pathways (paper Fig. 2E)")
+        body_lines.append(section_title)
         body_lines.append("")
         body_lines.append(f"Of the paper's top {number_paper_ora} pathways, "
                           f"{number_ora_found} were tested in our ORA and "
@@ -509,15 +660,15 @@ def compare_to_paper(output, reference_folder):
         body_lines.append("")
 
         summary_rows.append([
-            "Reactome ORA pathways",
+            f"{ora_collection_label} ORA pathways",
             f"{number_ora_significant} of the paper's {number_paper_ora} "
             f"top pathways are significant in ours",
             verdict,
         ])
     else:
-        body_lines.append("## 3. Reactome pathways (paper Fig. 2E)")
+        body_lines.append(section_title)
         body_lines.append("")
-        body_lines.append("Skipped: 10_reactome_ora.tsv was not found.")
+        body_lines.append(f"Skipped: {ora_results_file} was not found.")
         body_lines.append("")
 
     # ===============================================================
@@ -525,21 +676,23 @@ def compare_to_paper(output, reference_folder):
     # ===============================================================
 
     # Our main GSEA results (GO Biological Process by default).
-    gsea = pd.read_csv(output / "09_gsea_pathways.tsv", sep="\t")
+    gsea = pd.read_csv(output / gsea_results_file, sep="\t")
 
     # ---------------------------------------------------------------
-    # Part A: the paper's 20 GO Molecular Function terms, one by one.
+    # Part A: the paper's GO terms, one by one.
     # ---------------------------------------------------------------
 
     # Which of our GSEA tables should we compare them with?
-    # If the paper-style GSEA (GO Molecular Function, from
-    # run_paper_gsea.py) exists, use that: it's the same GO collection
-    # as the paper's. Otherwise use our main GSEA.
-    paper_style_file = output / "12_fig2F_gsea_go_mf.tsv"
+    # If the paper-style GSEA (from run_paper_gsea.py) exists, use
+    # that: it's the same GO collection as the paper's. Otherwise use
+    # our main GSEA.
+    paper_style_file = output / paper_gsea_results_file
     if paper_style_file.exists():
         lookup_table = pd.read_csv(paper_style_file, sep="\t")
+        compared_collection = paper_gsea_gene_sets
     else:
         lookup_table = gsea.copy()
+        compared_collection = gsea_gene_sets
 
     # Simplified names, so the paper's spelling can be matched.
     simple_names = []
@@ -550,8 +703,12 @@ def compare_to_paper(output, reference_folder):
     lookup_table = lookup_table.drop_duplicates("simple_name")
     gsea_lookup = lookup_table.set_index("simple_name")
 
-    # The paper's 20 terms, each with its direction.
-    paper_go = pd.read_csv(reference_folder / "paper_gsea_go_mf.tsv", sep="\t")
+    # The paper's terms, each with its direction.
+    paper_go = pd.read_csv(reference_folder / paper_gsea_file, sep="\t")
+    number_paper_go = len(paper_go)
+
+    # The label for these rows in the term table.
+    gsea_analysis_name = "GSEA " + compared_collection + " (Fig. 2F)"
 
     number_go_found = 0
     number_go_same_direction = 0
@@ -567,16 +724,16 @@ def compare_to_paper(output, reference_folder):
             # A positive NES means the term leans toward KO (higher in
             # the comparison group).
             if ours["NES"] > 0:
-                our_direction = "Higher in comparison"
+                our_direction = higher_label
             else:
-                our_direction = "Lower in comparison"
+                our_direction = lower_label
 
             same_direction = our_direction == paper_direction
             if same_direction:
                 number_go_same_direction = number_go_same_direction + 1
 
             term_rows.append({
-                "analysis": "GSEA GO Molecular Function (Fig. 2F)",
+                "analysis": gsea_analysis_name,
                 "paper_term": paper_term["term"],
                 "our_term": ours["Term"],
                 "our_rank": np.nan,
@@ -587,7 +744,7 @@ def compare_to_paper(output, reference_folder):
             })
         else:
             term_rows.append({
-                "analysis": "GSEA GO Molecular Function (Fig. 2F)",
+                "analysis": gsea_analysis_name,
                 "paper_term": paper_term["term"],
                 "our_term": "not tested",
                 "our_rank": np.nan,
@@ -601,66 +758,92 @@ def compare_to_paper(output, reference_folder):
     # Part B: the paper's headline GSEA finding.
     # ---------------------------------------------------------------
 
-    # The paper's main GSEA result: genes for ribosomes and protein
-    # synthesis go DOWN in the knockout. We check this in our MAIN
-    # GSEA, whichever GO collection it used.
+    # paper_info.tsv describes the paper's main GSEA result in three
+    # fields. For this paper:
+    #   gsea_headline           "ribosome and protein-synthesis terms
+    #                            go down in the knockout"
+    #   gsea_headline_keywords  "ribosom;translation;rrna;trna"
+    #   gsea_headline_direction "Lower in comparison"
     #
-    # GO Biological Process names these terms with words like
-    # "ribosome" and "translation"; GO Molecular Function uses words
-    # like "rRNA binding" and "tRNA binding", so we look for all four.
-    # "ribosom" (without the final e) also matches "ribosomal".
-    ribosome_down = []       # the significant terms going DOWN
-    number_ribosome_up = 0   # how many significant terms go UP
+    # We check this in our MAIN GSEA, whichever GO collection it used.
+    # A term counts if its name contains any keyword. (Short keywords
+    # catch more spellings: "ribosom" matches "ribosome" and
+    # "ribosomal".)
+    headline_text = info["gsea_headline"]
+    headline_direction = info["gsea_headline_direction"]
+
+    # .split(";") cuts the text at every ";" -> a list of keywords.
+    keywords = info["gsea_headline_keywords"].split(";")
+
+    # The NES sign that matches the paper's direction: negative (-1)
+    # for "lower", positive (+1) for "higher".
+    if headline_direction == lower_label:
+        expected_sign = -1
+    else:
+        expected_sign = 1
+
+    headline_terms_expected_way = []     # significant terms going the paper's way
+    number_headline_other_way = 0        # significant terms going the other way
 
     for row_number, row in gsea.iterrows():
         name = row["Term"].lower()
 
-        is_ribosome_term = False
-        if "ribosom" in name:
-            is_ribosome_term = True
-        if "translation" in name:
-            is_ribosome_term = True
-        if "rrna" in name:
-            is_ribosome_term = True
-        if "trna" in name:
-            is_ribosome_term = True
+        # Does the term's name contain any of the keywords?
+        is_headline_term = False
+        for keyword in keywords:
+            if keyword.lower() in name:
+                is_headline_term = True
 
         # Only count significant terms.
-        if is_ribosome_term and row["FDR q-val"] < fdr_cutoff:
-            if row["NES"] < 0:
-                ribosome_down.append(row)
-            elif row["NES"] > 0:
-                number_ribosome_up = number_ribosome_up + 1
+        if is_headline_term and row["FDR q-val"] < fdr_cutoff:
+            # np.sign() gives -1 for a negative number, +1 for a
+            # positive one, and 0 for exactly zero.
+            if np.sign(row["NES"]) == expected_sign:
+                headline_terms_expected_way.append(row)
+            elif np.sign(row["NES"]) == -expected_sign:
+                number_headline_other_way = number_headline_other_way + 1
 
-    number_ribosome_down = len(ribosome_down)
+    number_headline_expected_way = len(headline_terms_expected_way)
 
-    # The finding is reproduced if some of these terms go down, and
-    # more go down than up.
-    if number_ribosome_down > 0 and number_ribosome_down > number_ribosome_up:
-        ribosome_verdict = "agree"
+    # The finding is reproduced if some of these terms go the paper's
+    # way, and more go that way than the other way.
+    if (number_headline_expected_way > 0
+            and number_headline_expected_way > number_headline_other_way):
+        headline_verdict = "agree"
     else:
-        ribosome_verdict = "disagree"
+        headline_verdict = "disagree"
+
+    # Words for the two directions, for the sentence below.
+    if expected_sign == -1:
+        expected_word = "lower"
+        other_word = "higher"
+    else:
+        expected_word = "higher"
+        other_word = "lower"
+
+    keyword_text = ", ".join(keywords)
 
     body_lines.append("## 4. GSEA (paper Fig. 2F)")
     body_lines.append("")
-    body_lines.append(f"The paper's main GSEA finding is that ribosome and protein-synthesis "
-                      f"terms go down in the knockout. In our GSEA, "
-                      f"{number_ribosome_down} such terms (ribosome, translation, rRNA, tRNA) are "
-                      f"significantly lower and {number_ribosome_up} are significantly higher.")
+    body_lines.append(f"The paper's main GSEA finding is that {headline_text}. In our GSEA "
+                      f"({gsea_gene_sets}), {number_headline_expected_way} matching terms "
+                      f"(names containing: {keyword_text}) are significantly {expected_word} "
+                      f"and {number_headline_other_way} are significantly {other_word}.")
     body_lines.append("")
-    body_lines.append("Top three of them in our results:")
+    body_lines.append(f"Top {report_examples} of them in our results:")
     body_lines.append("")
 
-    # List the first three of the down terms. The GSEA table is sorted
-    # by FDR, so these are the three most significant.
+    # List the first few terms going the paper's way (report_examples
+    # = 3 in settings.py). The GSEA table is sorted by FDR, so these
+    # are the most significant.
     number_listed = 0
-    for row in ribosome_down:
-        if number_listed == 3:
+    for row in headline_terms_expected_way:
+        if number_listed == report_examples:
             break   # "break" leaves the loop early
         number_listed = number_listed + 1
 
-        # GSEApy reports an FDR of exactly 0 when it's smaller than the
-        # 1,000 permutations can measure, so we label it an estimate.
+        # GSEApy reports an FDR of exactly 0 when it's smaller than its
+        # permutations can measure, so we label it an estimate.
         if row["FDR q-val"] == 0:
             fdr_text = "0 (estimated)"
         else:
@@ -673,56 +856,61 @@ def compare_to_paper(output, reference_folder):
 
     # A sentence about part A.
     if number_go_found == 0:
-        body_lines.append("None of the paper's 20 GO Molecular Function terms were in our "
-                          "GSEA table, because our GSEA used a different collection. "
-                          "To compare term by term, set `gsea_gene_sets = "
-                          "\"GO_Molecular_Function_2025\"` in settings.py.")
+        body_lines.append(f"None of the paper's {number_paper_go} GO terms were in our "
+                          f"GSEA table ({compared_collection}), probably because it used a "
+                          f"different collection. To compare term by term, run the analysis "
+                          f"with internet access (so the {paper_gsea_gene_sets} GSEA can run), "
+                          f"or set `gsea_gene_sets = \"{paper_gsea_gene_sets}\"` in settings.py.")
     else:
-        body_lines.append(f"Of the paper's 20 GO Molecular Function terms, "
-                          f"{number_go_found} were tested in our GSEA and "
+        body_lines.append(f"Of the paper's {number_paper_go} GO terms, "
+                          f"{number_go_found} were tested in our GSEA ({compared_collection}) and "
                           f"{number_go_same_direction} change in the same direction.")
     body_lines.append("")
 
     summary_rows.append([
-        "GSEA: ribosome/protein-synthesis terms lower in knockout",
-        f"{number_ribosome_down} significant terms lower, {number_ribosome_up} higher",
-        ribosome_verdict,
+        "GSEA: " + headline_text,
+        f"{number_headline_expected_way} significant terms {expected_word}, "
+        f"{number_headline_other_way} {other_word}",
+        headline_verdict,
     ])
 
     # The term-by-term check only gets a summary row if any terms were
-    # found. Rule of thumb: at least 80% the same way = agreement.
+    # found. Rule of thumb: at least agree_direction_percent (80%) the
+    # same way = agreement.
     if number_go_found > 0:
-        if number_go_same_direction >= number_go_found * 0.8:
+        if number_go_same_direction >= number_go_found * agree_direction_percent / 100:
             verdict = "agree"
         else:
             verdict = "partly agree"
 
         summary_rows.append([
-            "GSEA: the paper's 20 GO Molecular Function terms",
+            f"GSEA: the paper's {number_paper_go} GO terms",
             f"{number_go_same_direction} of {number_go_found} tested go the same way",
             verdict,
         ])
 
     # Save the term-by-term table for questions 3 and 4.
     term_table = pd.DataFrame(term_rows)
-    term_table.to_csv(output / "11_paper_term_comparison.tsv", sep="\t", index=False)
+    term_table.to_csv(output / term_comparison_file, sep="\t", index=False)
 
     # ===============================================================
     # Why our results can differ from the paper's
     # ===============================================================
 
+    # The methods table comes from paper_methods.tsv, with our side
+    # filled in from settings.py (see read_methods() above).
+    methods = read_methods(output, reference_folder)
+
     body_lines.append("## Why our numbers are not identical to the paper's")
     body_lines.append("")
     body_lines.append("| Step | Paper | This project |")
     body_lines.append("|---|---|---|")
-    body_lines.append("| Trimming | Trimmomatic | Trim Galore (nf-core/rnaseq) |")
-    body_lines.append("| Alignment | STAR | STAR |")
-    body_lines.append("| Counting | HTSeq, Ensembl 104 | Salmon + tximport, GENCODE v47 |")
-    body_lines.append("| Gene filter | mean count >= 20 (23,590 genes) | "
-                      ">= 10 counts in >= 3 samples |")
-    body_lines.append("| Statistics | limma-voom, robust fit | PyDESeq2 |")
-    body_lines.append("| GSEA | fgsea, GO Molecular Function | GSEApy, setting in settings.py |")
-    body_lines.append("| ORA | ShinyGO, curated Reactome | hypergeometric test, Reactome (.gmt) |")
+    # Looping over a dictionary gives its keys, here the step names,
+    # in the order of the file.
+    for step in methods:
+        paper_method = methods[step]["paper"]
+        our_method = methods[step]["this_project"]
+        body_lines.append(f"| {step} | {paper_method} | {our_method} |")
     body_lines.append("")
 
     # ===============================================================
@@ -747,7 +935,9 @@ def compare_to_paper(output, reference_folder):
 
     # Write every line to the file. "w" opens it for writing (replacing
     # any old version); "\n" ends each line.
-    with open(output / "11_comparison_with_paper.md", "w") as file:
+    # encoding="utf-8" makes sure symbols such as "≥" are saved
+    # correctly on every computer (Windows uses another default).
+    with open(output / comparison_report_file, "w", encoding="utf-8") as file:
         for line in report:
             file.write(line + "\n")
 
@@ -762,10 +952,39 @@ def compare_to_paper(output, reference_folder):
 
 
 # ###################################################################
+# Helper: the correlation of the paper's fold changes with ours
+# (plot_paper_figures.py uses it too)
+# ###################################################################
+
+def fold_change_correlation(found_genes):
+    """Pearson correlation of the paper's log2 fold changes with ours.
+
+    1 = perfect agreement, 0 = no relationship. found_genes must have
+    the columns "paper_log2FoldChange" and "our_log2FoldChange".
+    """
+
+    # A correlation needs at least min_points_for_correlation (3)
+    # points to mean anything (see settings.py). With fewer, return
+    # np.nan ("missing").
+    if len(found_genes) < min_points_for_correlation:
+        return np.nan
+
+    # np.corrcoef() returns a small 2 x 2 grid of correlations:
+    #   [[ paper vs paper,  paper vs ours ],
+    #    [ ours vs paper,   ours vs ours  ]]
+    # The number we want is in row 0, column 1.
+    correlation_grid = np.corrcoef(
+        found_genes["paper_log2FoldChange"],
+        found_genes["our_log2FoldChange"],
+    )
+    return correlation_grid[0, 1]
+
+
+# ###################################################################
 # The scatter plot for question 2
 # ###################################################################
 
-def plot_gene_comparison(found_genes, correlation, output):
+def plot_gene_comparison(found_genes, correlation, number_of_paper_genes, output):
     """Scatter plot: the paper's fold change vs ours, one dot per gene.
 
     If the two analyses agreed perfectly, every dot would sit on the
@@ -776,14 +995,14 @@ def plot_gene_comparison(found_genes, correlation, output):
     if len(found_genes) == 0:
         return
 
-    # A square figure, 6 x 6 inches.
+    # A square figure, 6 x 6 inches (visual only).
     fig, ax = plt.subplots(figsize=(6, 6))
 
     # x = the paper's fold change, y = ours.
     x = found_genes["paper_log2FoldChange"]
     y = found_genes["our_log2FoldChange"]
 
-    ax.scatter(x, y, color="slategray", s=30)
+    ax.scatter(x, y, color=neutral_color, s=30)
 
     # Write each gene's name next to its dot, and keep the labels in a
     # list so adjust_text() can move them apart afterwards.
@@ -797,17 +1016,18 @@ def plot_gene_comparison(found_genes, correlation, output):
     # It runs from the smallest value on either axis to the largest.
     lowest = min(x.min(), y.min())
     highest = max(x.max(), y.max())
-    ax.plot([lowest, highest], [lowest, highest], linestyle="--", color="gray", linewidth=0.8)
+    ax.plot([lowest, highest], [lowest, highest], linestyle="--",
+            color=cutoff_line_color, linewidth=0.8)
 
-    # Light lines at zero on both axes: dots in the top-right and
-    # bottom-left quarters change in the same direction in both
-    # analyses.
+    # Light lines at zero (= no change) on both axes: dots in the
+    # top-right and bottom-left quarters change in the same direction
+    # in both analyses.
     ax.axhline(0, color="lightgray", linewidth=0.8)
     ax.axvline(0, color="lightgray", linewidth=0.8)
 
     ax.set_xlabel(r"Paper $\log_2$ fold change")
     ax.set_ylabel(r"Our $\log_2$ fold change")
-    ax.set_title(f"Paper's top 60 genes (r = {correlation:.2f})")
+    ax.set_title(f"Paper's top {number_of_paper_genes} genes (r = {correlation:.2f})")
 
     # Move overlapping labels apart; the dots stay where they are.
     adjust_text(
@@ -815,11 +1035,11 @@ def plot_gene_comparison(found_genes, correlation, output):
         x=x,
         y=y,
         ax=ax,
-        arrowprops={"arrowstyle": "-", "color": "#65717a", "linewidth": 0.5},
+        arrowprops={"arrowstyle": "-", "color": label_line_color, "linewidth": 0.5},
         iter_lim=300,
     )
 
-    save_plot(fig, output / "11_paper_vs_our_fold_change.png")
+    save_plot(fig, output / fold_change_comparison_plot_file)
 
 
 # ###################################################################

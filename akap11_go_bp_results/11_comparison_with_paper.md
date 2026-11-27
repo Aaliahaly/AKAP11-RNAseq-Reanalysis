@@ -1,6 +1,6 @@
 # Comparison with Farhangdoost et al. (2025)
 
-Paper: Molecular Psychiatry 30:4543-4557, https://doi.org/10.1038/s41380-025-03040-x
+Paper: Farhangdoost et al. (2025) Molecular Psychiatry 30:4543-4557, https://doi.org/10.1038/s41380-025-03040-x
 
 ## Summary
 
@@ -9,8 +9,8 @@ Paper: Molecular Psychiatry 30:4543-4557, https://doi.org/10.1038/s41380-025-030
 | Number of significant genes | paper 849, ours 848 (0.1% apart) | similar |
 | Paper's top 60 genes | 55 of 55 found go the same way; 37 significant in ours; r = 0.98 | agree |
 | Reactome ORA pathways | 7 of the paper's 10 top pathways are significant in ours | agree |
-| GSEA: ribosome/protein-synthesis terms lower in knockout | 16 significant terms lower, 0 higher | agree |
-| GSEA: the paper's 20 GO Molecular Function terms | 9 of 9 tested go the same way | agree |
+| GSEA: ribosome and protein-synthesis terms go down in the knockout | 16 significant terms lower, 0 higher | agree |
+| GSEA: the paper's 20 GO terms | 9 of 9 tested go the same way | agree |
 
 ## 1. Number of significant genes (paper Fig. 2B)
 
@@ -20,7 +20,7 @@ Paper: Molecular Psychiatry 30:4543-4557, https://doi.org/10.1038/s41380-025-030
 | Lower in comparison group | 421 | 475 |
 | Higher in comparison group | 428 | 373 |
 
-The totals differ by 0.1%.
+The totals differ by 0.1% ("similar" means at most 20% apart).
 
 ## 2. The paper's top 60 genes (paper Fig. 2D)
 
@@ -38,15 +38,15 @@ Of the paper's top 10 pathways, 10 were tested in our ORA and 7 have FDR < 0.05 
 
 ## 4. GSEA (paper Fig. 2F)
 
-The paper's main GSEA finding is that ribosome and protein-synthesis terms go down in the knockout. In our GSEA, 16 such terms (ribosome, translation, rRNA, tRNA) are significantly lower and 0 are significantly higher.
+The paper's main GSEA finding is that ribosome and protein-synthesis terms go down in the knockout. In our GSEA (GO_Biological_Process_2025), 16 matching terms (names containing: ribosom, translation, rrna, trna) are significantly lower and 0 are significantly higher.
 
-Top three of them in our results:
+Top 3 of them in our results:
 
 - Cytoplasmic Translation (GO:0002181): NES -3.41, FDR 0 (estimated)
 - Translation (GO:0006412): NES -3.11, FDR 0 (estimated)
 - Ribosomal Small Subunit Biogenesis (GO:0042274): NES -2.38, FDR 0 (estimated)
 
-Of the paper's 20 GO Molecular Function terms, 9 were tested in our GSEA and 9 change in the same direction.
+Of the paper's 20 GO terms, 9 were tested in our GSEA (GO_Molecular_Function_2025) and 9 change in the same direction.
 
 ## Why our numbers are not identical to the paper's
 
@@ -54,9 +54,10 @@ Of the paper's 20 GO Molecular Function terms, 9 were tested in our GSEA and 9 c
 |---|---|---|
 | Trimming | Trimmomatic | Trim Galore (nf-core/rnaseq) |
 | Alignment | STAR | STAR |
-| Counting | HTSeq, Ensembl 104 | Salmon + tximport, GENCODE v47 |
-| Gene filter | mean count >= 20 (23,590 genes) | >= 10 counts in >= 3 samples |
+| Counting | HTSeq | Salmon + tximport |
+| Annotation | Ensembl 104 | GENCODE v47 |
+| Gene filter | mean count >= 20 (23,590 genes) | >= 10 counts in >= 3 samples (26,288 genes) |
 | Statistics | limma-voom, robust fit | PyDESeq2 |
-| GSEA | fgsea, GO Molecular Function | GSEApy, setting in settings.py |
-| ORA | ShinyGO, curated Reactome | hypergeometric test, Reactome (.gmt) |
+| GSEA | fgsea, GO Molecular Function | GSEApy, GO_Biological_Process_2025 |
+| ORA | ShinyGO 0.77, curated Reactome | hypergeometric test, reactome_human.gmt |
 

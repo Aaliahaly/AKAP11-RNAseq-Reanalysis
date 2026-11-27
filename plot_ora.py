@@ -29,10 +29,8 @@ OUTPUT FILE
 
 PYTHON IDEAS USED IN THIS FILE
     table.head(10)     the first 10 rows of a table
-    text.split(" ")    cut a text at every space -> a list of words
-    words[-1]          the LAST item of a list
-    words[:-1]         every item EXCEPT the last
-    " ".join(words)    glue the words back together with spaces
+    text.split(x)[0]   cut a text at x and keep the piece BEFORE it
+    text.strip()       remove spaces from the start and end of a text
     -np.log10(x)       turns a small number into a big one:
                        0.1 -> 1, 0.01 -> 2, 0.001 -> 3
 ===================================================================
@@ -42,7 +40,37 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from save_plot import save_plot
-from settings import ora_top    # how many pathways to show (10)
+from settings import ora_top            # how many pathways to show (10)
+from settings import fdr_cutoff         # 0.05
+from settings import term_id_markers    # [" R-HSA-", "(GO:"]
+from settings import neutral_color      # "slategray"
+from settings import cutoff_line_color  # gray
+from settings import ora_plot_file      # "10_reactome_ora.png"
+from settings import ora_collection_label   # "Reactome"
+
+
+def remove_term_id(name):
+    """Cut a pathway name at its database ID, if it has one.
+
+    For example
+        "Extracellular Matrix Organization R-HSA-1474244"
+    becomes
+        "Extracellular Matrix Organization"
+
+    The ID markers to look for are listed in settings.py
+    (term_id_markers), so this works for Reactome and GO names, and
+    for any other database you add to that list.
+    """
+
+    # Try each marker in turn. text.split(marker) cuts the text at the
+    # marker and gives a list of pieces; [0] is the piece BEFORE it.
+    # If the marker isn't in the text, split() gives back the whole
+    # text as the only piece, so nothing changes.
+    for marker in term_id_markers:
+        name = name.split(marker)[0]
+
+    # .strip() removes any spaces left at the start or end.
+    return name.strip()
 
 
 def plot_ora(ora, output):
@@ -52,7 +80,8 @@ def plot_ora(ora, output):
     # ===============================================================
 
     # run_ora.py already sorted the table, smallest FDR first, so the
-    # first 10 rows are the 10 strongest pathways.
+    # first ora_top rows (10, from settings.py) are the strongest
+    # pathways.
     top = ora.head(ora_top)
 
     # If there are no rows, there's nothing to draw. "return" leaves
@@ -79,14 +108,11 @@ def plot_ora(ora, output):
     # Go through the pathways one row at a time.
     for row_number, row in top.iterrows():
 
-        # Pathway names end with a Reactome ID, for example
+        # Pathway names end with a database ID, for example
         #   "Extracellular Matrix Organization R-HSA-1474244"
-        # Remove the ID so the label is shorter and easier to read.
-        name = row["Term"]
-        words = name.split(" ")
-        if words[-1].startswith("R-HSA-"):
-            words = words[:-1]       # drop the last word (the ID)
-        name = " ".join(words)
+        # Remove the ID so the label is shorter and easier to read
+        # (see remove_term_id() at the top of this file).
+        name = remove_term_id(row["Term"])
 
         # Add the number of our significant genes in the pathway, e.g.
         #   "Extracellular Matrix Organization (34 genes)"
@@ -109,16 +135,19 @@ def plot_ora(ora, output):
     fig, ax = plt.subplots(figsize=(9, height))
 
     # barh = horizontal bars: one label and one length per bar.
-    ax.barh(labels, bar_lengths, color="slategray")
+    ax.barh(labels, bar_lengths, color=neutral_color)
 
-    # A dashed line at FDR = 0.05 (-log10(0.05) is about 1.3).
-    # Bars that reach past it pass the usual significance cutoff.
-    ax.axvline(-np.log10(0.05), linestyle="--", color="gray", linewidth=0.8)
+    # A dashed line at FDR = fdr_cutoff (0.05 in settings.py;
+    # -log10(0.05) is about 1.3). Bars that reach past it pass the
+    # significance cutoff.
+    ax.axvline(-np.log10(fdr_cutoff), linestyle="--", color=cutoff_line_color, linewidth=0.8)
 
     # The r"..." text with $...$ is written in math style, so it shows
     # as "-log10 FDR" with a proper subscript.
     ax.set_xlabel(r"$-\log_{10}$ FDR")
-    ax.set_title("Top Reactome pathways among significant genes (ORA)")
+    # The collection's name comes from settings.py, so the title stays
+    # right if you switch to another pathway file.
+    ax.set_title("Top " + ora_collection_label + " pathways among significant genes (ORA)")
 
     # save_plot() saves the figure as a PNG and closes it.
-    save_plot(fig, output / "10_reactome_ora.png")
+    save_plot(fig, output / ora_plot_file)

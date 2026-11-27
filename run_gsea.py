@@ -31,6 +31,12 @@ OUTPUT FILES
     09_gsea_gene_ranking.rnk   the ordered gene list
     09_gsea_pathways.tsv       results for every GO term tested
 
+RETURNS (to run_analysis.py)
+    pathways     the results table (also saved as 09_gsea_pathways.tsv)
+    enrichment   GSEApy's full result, which also holds each term's
+                 running enrichment score curve; plot_gsea_enrichment.py
+                 draws the classic GSEA plots from it
+
 HOW TO READ THE RESULTS
     NES (normalized enrichment score)
         positive -> the term's genes lean toward the top (up in KO)
@@ -57,6 +63,8 @@ from settings import gsea_min_size    # 15
 from settings import gsea_max_size    # 500
 from settings import permutations     # 1000
 from settings import seed             # 42
+from settings import gsea_ranking_file    # "09_gsea_gene_ranking.rnk"
+from settings import gsea_results_file    # "09_gsea_pathways.tsv"
 
 
 def run_gsea(results, gene_sets, output):
@@ -122,8 +130,10 @@ def run_gsea(results, gene_sets, output):
     # Example lines:
     #   OTX1     16.42
     #   CXCL12   11.15
+    # The file name is in settings.py, because run_paper_gsea.py reads
+    # this same file later.
     ranking.to_csv(
-        output / "09_gsea_gene_ranking.rnk",
+        output / gsea_ranking_file,
         sep="\t",
         index=False,
         header=False,
@@ -147,17 +157,19 @@ def run_gsea(results, gene_sets, output):
             # (downloaded) or a .gmt file name (offline).
             gene_sets=gene_sets,
 
-            # Only test GO terms that share 15 to 500 genes with our list.
+            # Only test GO terms that share 15 to 500 genes with our
+            # list (gsea_min_size and gsea_max_size in settings.py).
             min_size=gsea_min_size,
             max_size=gsea_max_size,
 
             # To judge whether a term is really enriched, GSEA shuffles
-            # the gene labels 1,000 times and reruns the test each time.
+            # the gene labels 1,000 times (permutations in settings.py)
+            # and reruns the test each time.
             # That shows what results look like by pure chance.
             permutation_num=permutations,
 
-            # Fix the random shuffles, so every run gives the same
-            # results.
+            # Fix the random shuffles (seed in settings.py), so every
+            # run gives the same results.
             seed=seed,
 
             # Don't let GSEApy write its own files or plots: we save
@@ -199,8 +211,10 @@ def run_gsea(results, gene_sets, output):
 
     # Save every tested term. index=False: GSEApy's row numbers aren't
     # useful, so we leave them out.
-    pathways.to_csv(output / "09_gsea_pathways.tsv", sep="\t", index=False)
+    pathways.to_csv(output / gsea_results_file, sep="\t", index=False)
 
-    # Send the table back to run_analysis.py, which passes it to
-    # plot_pathways.py.
-    return pathways
+    # Send two things back to run_analysis.py:
+    #   pathways   -> the table, for plot_pathways.py (bar chart)
+    #   enrichment -> GSEApy's full result, for plot_gsea_enrichment.py
+    #                 (the classic enrichment plots need its curves)
+    return pathways, enrichment

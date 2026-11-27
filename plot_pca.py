@@ -62,6 +62,12 @@ from adjustText import adjust_text
 from sklearn.decomposition import PCA
 
 from save_plot import save_plot
+from settings import condition_column               # "condition"
+from settings import sample_column                  # "sample"
+from settings import label_line_color               # gray for label lines
+from settings import pca_scores_file                # "03_pca_scores.tsv"
+from settings import pca_plot_file                  # "03_pca.png"
+from settings import sample_correlation_plot_file   # "04_sample_correlation.png"
 
 
 def plot_pca(count_file, transformed, metadata, colors, output):
@@ -133,6 +139,8 @@ def plot_pca(count_file, transformed, metadata, colors, output):
     # Ask for 2 principal components:
     #   PC1 = the single direction in which the samples differ the most
     #   PC2 = the next biggest difference, independent of PC1
+    # Why 2? A flat plot has exactly two axes, so 2 is all we can draw.
+    # (This is not a tunable analysis choice; the plot needs it.)
     pca = PCA(n_components=2)
 
     # fit_transform() does two things at once:
@@ -149,10 +157,10 @@ def plot_pca(count_file, transformed, metadata, colors, output):
     )
 
     # Add each sample's group; the plot uses it to color the dots.
-    scores["condition"] = metadata["condition"]
+    scores[condition_column] = metadata[condition_column]
 
-    # Save the positions. index_label="sample" names the first column.
-    scores.to_csv(output / "03_pca_scores.tsv", sep="\t", index_label="sample")
+    # Save the positions. index_label names the first column "sample".
+    scores.to_csv(output / pca_scores_file, sep="\t", index_label=sample_column)
 
     # ===============================================================
     # STEP 4: Draw the PCA plot
@@ -166,14 +174,14 @@ def plot_pca(count_file, transformed, metadata, colors, output):
     # Draw one dot per sample.
     #   data=scores     -> take the values from this table
     #   x="PC1"/y="PC2" -> which columns go on which axis
-    #   hue="condition" -> color the dots by group
+    #   hue=...         -> color the dots by group (the "condition" column)
     #   palette=colors  -> use our colors: {"WT": "steelblue", "KO": "firebrick"}
     #   s=95            -> dot size
     sns.scatterplot(
         data=scores,
         x="PC1",
         y="PC2",
-        hue="condition",
+        hue=condition_column,
         palette=colors,
         s=95,
         ax=ax,
@@ -211,7 +219,7 @@ def plot_pca(count_file, transformed, metadata, colors, output):
     ax.set_title(f"PCA of all {number_of_genes:,} genes")
 
     # Leave 20% empty space around the dots so labels near the edge
-    # still fit inside the plot.
+    # still fit inside the plot. (Visual only.)
     ax.margins(0.2)
 
     # Move overlapping labels apart. The dots themselves don't move.
@@ -224,11 +232,11 @@ def plot_pca(count_file, transformed, metadata, colors, output):
         x=scores["PC1"],
         y=scores["PC2"],
         ax=ax,
-        arrowprops={"arrowstyle": "-", "color": "#65717a"},
+        arrowprops={"arrowstyle": "-", "color": label_line_color},
         iter_lim=200,
     )
 
-    save_plot(fig, output / "03_pca.png")
+    save_plot(fig, output / pca_plot_file)
 
     # ===============================================================
     # STEP 5: Draw the sample correlation heatmap
@@ -271,4 +279,4 @@ def plot_sample_correlation(transformed, output):
 
     ax.set_title("Sample correlations across filtered genes")
 
-    save_plot(fig, output / "04_sample_correlation.png")
+    save_plot(fig, output / sample_correlation_plot_file)

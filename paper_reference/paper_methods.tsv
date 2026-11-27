@@ -1,0 +1,9 @@
+step	paper	this_project	affects_gene_list
+Trimming	Trimmomatic	Trim Galore (nf-core/rnaseq)	yes
+Alignment	STAR	STAR	yes
+Counting	HTSeq	Salmon + tximport	yes
+Annotation	Ensembl 104	GENCODE v47	yes
+Gene filter	mean count >= 20 (23,590 genes)	>= {min_count} counts in >= {min_samples} samples ({genes_tested:,} genes)	yes
+Statistics	limma-voom, robust fit	PyDESeq2	yes
+GSEA	fgsea, GO Molecular Function	GSEApy, {gsea_gene_sets}	no
+ORA	ShinyGO 0.77, curated Reactome	hypergeometric test, {ora_gene_sets}	no

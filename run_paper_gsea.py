@@ -47,6 +47,8 @@ from settings import paper_gsea_min_size     # 15
 from settings import paper_gsea_max_size     # 3000
 from settings import permutations            # 1000
 from settings import seed                    # 42
+from settings import gsea_ranking_file       # "09_gsea_gene_ranking.rnk"
+from settings import paper_gsea_results_file # "12_fig2F_gsea_go_mf.tsv"
 
 
 def run_paper_gsea(output):
@@ -61,7 +63,7 @@ def run_paper_gsea(output):
     #   header=None            -> the first line is data, not names
     #   names=[...]            -> so we give the two columns names
     ranking = pd.read_csv(
-        output / "09_gsea_gene_ranking.rnk",
+        output / gsea_ranking_file,
         sep="\t",
         header=None,
         names=["gene_name", "stat"],
@@ -115,6 +117,6 @@ def run_paper_gsea(output):
 
     # Save every term. plot_paper_figures.py and compare_to_paper.py
     # read this file.
-    pathways.to_csv(output / "12_fig2F_gsea_go_mf.tsv", sep="\t", index=False)
+    pathways.to_csv(output / paper_gsea_results_file, sep="\t", index=False)
 
     return pathways

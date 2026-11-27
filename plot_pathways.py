@@ -42,6 +42,8 @@ import pandas as pd
 from save_plot import save_plot
 from settings import gsea_top                 # 8 terms per direction
 from settings import gsea_collection_label    # e.g. "GO Biological Process"
+from settings import cutoff_line_color        # gray
+from settings import gsea_plot_file           # "09_gsea_pathways.png"
 
 
 def plot_pathways(pathways, reference_group, comparison_group, colors, output):
@@ -52,10 +54,11 @@ def plot_pathways(pathways, reference_group, comparison_group, colors, output):
 
     # run_gsea.py already sorted the table so the most significant
     # terms (smallest FDR q-value) come first. So taking the "first 8"
-    # of a group means taking its 8 most significant terms.
+    # of a group means taking its 8 most significant terms
+    # (gsea_top = 8 in settings.py).
 
     # Terms that lean toward KO have a positive NES.
-    # Keep those rows, then take the top 8.
+    # Keep those rows, then take the top gsea_top.
     leans_toward_comparison = pathways["NES"] > 0
     positive = pathways[leans_toward_comparison].head(gsea_top)
 
@@ -63,7 +66,7 @@ def plot_pathways(pathways, reference_group, comparison_group, colors, output):
     leans_toward_reference = pathways["NES"] < 0
     negative = pathways[leans_toward_reference].head(gsea_top)
 
-    # Stack the two small tables into one (up to 16 rows).
+    # Stack the two small tables into one (up to 2 x gsea_top rows).
     top = pd.concat([positive, negative])
 
     # Sort by NES, from most negative to most positive. matplotlib
@@ -131,7 +134,7 @@ def plot_pathways(pathways, reference_group, comparison_group, colors, output):
     ax.barh(labels, top["NES"], color=bar_colors)
 
     # A thin line at zero separates the WT side from the KO side.
-    ax.axvline(0, color="gray", linewidth=0.8)
+    ax.axvline(0, color=cutoff_line_color, linewidth=0.8)
 
     # The x-axis title, e.g.
     # "Normalized enrichment score (− WT, + KO)"
@@ -148,4 +151,4 @@ def plot_pathways(pathways, reference_group, comparison_group, colors, output):
     # e.g. "Top GO Biological Process terms by GSEA FDR".
     ax.set_title("Top " + gsea_collection_label + " terms by GSEA FDR")
 
-    save_plot(fig, output / "09_gsea_pathways.png")
+    save_plot(fig, output / gsea_plot_file)

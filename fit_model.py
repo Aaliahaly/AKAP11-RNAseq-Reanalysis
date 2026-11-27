@@ -54,7 +54,9 @@ PYTHON IDEAS USED IN THIS FILE
     object.method()
                 PyDESeq2 creates an object (the model) that we then
                 ask to do things, like model.deseq2()
-    elif        "else if": checked only when the if above was False
+    zip(a, b)   go through two lists side by side, one pair at a time
+    def         make our own small function, to avoid writing the
+                same code twice
 ===================================================================
 """
 
@@ -65,8 +67,34 @@ import pandas as pd
 from pydeseq2.dds import DeseqDataSet
 from pydeseq2.ds import DeseqStats
 
-from settings import fdr_cutoff            # 0.05
-from settings import fold_change_cutoff    # 1.0
+# Settings (see settings.py for why each value was chosen).
+from settings import fdr_cutoff              # 0.05
+from settings import fold_change_cutoff      # 1.0
+from settings import condition_column        # "condition"
+from settings import sample_column           # "sample"
+from settings import higher_label            # "Higher in comparison"
+from settings import lower_label             # "Lower in comparison"
+from settings import not_significant_label   # "Below thresholds"
+
+# The names of the five files this step writes.
+from settings import sample_qc_file
+from settings import differential_expression_file
+from settings import significant_genes_file
+from settings import normalized_counts_file
+from settings import vst_expression_file
+
+
+def layer_to_table(model, layer_name, sample_names, gene_ids):
+    """Turn one of PyDESeq2's number grids into a labeled table.
+
+    PyDESeq2 keeps its results as plain grids of numbers with no
+    labels (samples in rows, genes in columns). This adds the labels,
+    then swaps rows and columns (.T) so genes are in rows, like the
+    rest of the project. We need this twice (STEP 3), so it is a
+    function instead of the same code written twice.
+    """
+    table = pd.DataFrame(model.layers[layer_name], index=sample_names, columns=gene_ids)
+    return table.T
 
 
 def fit_model(counts, metadata, annotation, reference_group, comparison_group, output):
@@ -75,214 +103,136 @@ def fit_model(counts, metadata, annotation, reference_group, comparison_group, o
     # STEP 1: Fit the model and compare the two groups
     # ===============================================================
 
-    # Our count table has genes in rows and samples in columns:
-    #
-    #                 WT_rep1  WT_rep2  ...  AKAP11_KO_clone21
-    #   ENSG...0003   9120     8433     ...  9775
-    #
-    # PyDESeq2 wants the opposite: samples in rows, genes in columns.
-    # .T ("transpose") swaps rows and columns.
-    counts_by_sample = counts.T
-
-    # The model needs each sample's group. Double brackets [[ ]] keep
-    # this as a one-column table (PyDESeq2 needs a table, not a column).
-    conditions = metadata[["condition"]]
-
     # Set up the model.
-    #   counts   -> the read counts (samples x genes)
-    #   metadata -> the group of each sample
-    #   design   -> "~condition" is a formula meaning "expression
-    #               depends on the condition (WT or KO)". It's the
-    #               simplest possible design: one factor, two levels.
+    #   counts   -> the read counts. Ours has genes in rows, but
+    #               PyDESeq2 wants samples in rows, so .T swaps them.
+    #   metadata -> each sample's group. Double brackets [[ ]] keep it
+    #               as a one-column table, which PyDESeq2 needs.
+    #   design   -> "~condition" means "expression depends on the
+    #               group (WT or KO)": one factor, two levels. We build
+    #               it from the column name in settings.py, so it always
+    #               matches the sample sheet: "~" + "condition".
     model = DeseqDataSet(
-        counts=counts_by_sample,
-        metadata=conditions,
-        design="~condition",
+        counts=counts.T,
+        metadata=metadata[[condition_column]],
+        design="~" + condition_column,
     )
 
-    # Fit the model. This one line does steps 1 to 3 of
-    # "HOW DESeq2 WORKS" above: size factors, dispersions, and the
-    # fold change of every gene. It prints progress messages and takes
-    # a minute or two.
+    # Fit the model: size factors, dispersions, and every gene's fold
+    # change (steps 1 to 3 of "HOW DESeq2 WORKS" above). It prints
+    # progress messages and takes a minute or two.
     model.deseq2()
 
-    # Say which comparison we want. The order is:
-    #   [column name, comparison group, reference group]
-    # so this means "KO compared with WT". As a result:
-    #   positive log2 fold change -> higher in KO
-    #   negative log2 fold change -> lower in KO (higher in WT)
-    contrast = ["condition", comparison_group, reference_group]
+    # Run the test, comparing KO with WT. The contrast is
+    #   [group column, comparison group, reference group]
+    # so a positive log2 fold change means higher in KO, and a
+    # negative one means lower in KO (higher in WT).
+    # alpha=fdr_cutoff tells PyDESeq2 our adjusted p-value cutoff, which
+    # it uses to decide which genes are worth testing ("independent
+    # filtering": genes with very low counts get padj = NaN, empty).
+    test = DeseqStats(
+        model,
+        contrast=[condition_column, comparison_group, reference_group],
+        alpha=fdr_cutoff,
+    )
 
-    # Set up the test. alpha=fdr_cutoff tells PyDESeq2 which adjusted
-    # p-value cutoff we will use, which it needs for one of its
-    # internal steps (independent filtering, see below).
-    test = DeseqStats(model, contrast=contrast, alpha=fdr_cutoff)
-
-    # Run the test on every gene and print a short preview in Terminal.
+    # Test every gene, and print a short preview in Terminal.
     test.summary()
-
-    # The test results are a table called results_df, one row per gene:
-    #   baseMean       -> average normalized count across all samples
-    #   log2FoldChange -> the change, KO vs WT, on a log2 scale
-    #   lfcSE          -> the uncertainty of that change
-    #   stat           -> the Wald statistic: change / uncertainty
-    #   pvalue         -> the p-value of the test
-    #   padj           -> the p-value adjusted for testing many genes
-    #
-    # A few genes get padj = NaN (empty). PyDESeq2 does this on purpose
-    # for genes with very low counts ("independent filtering") or with
-    # an extreme outlier sample, because their test isn't reliable.
-    test_results = test.results_df
 
     # ===============================================================
     # STEP 2: Add gene names and decide which genes are significant
     # ===============================================================
 
-    # Both tables use gene IDs as row labels, so we can join them side
-    # by side. how="right" means: keep every gene that is in the test
-    # results (the table on the RIGHT, inside the brackets), and add
-    # its gene_name and label columns from the annotation table.
-    results = annotation.join(test_results, how="right")
-
-    # Now give every gene a "direction" label:
-    #   "Higher in comparison" -> significant AND higher in KO
-    #   "Lower in comparison"  -> significant AND lower in KO
-    #   "Below thresholds"     -> did not pass both cutoffs
+    # test.results_df has one row per gene:
+    #   baseMean       -> average normalized count across all samples
+    #   log2FoldChange -> the change, KO vs WT, on a log2 scale
+    #   lfcSE          -> the uncertainty of that change
+    #   stat           -> the Wald statistic: change / uncertainty
+    #   pvalue, padj   -> the p-value, and the p-value adjusted for
+    #                     testing many genes
     #
-    # First take the two columns we need as plain lists.
-    all_padj = list(results["padj"])
-    all_fold_changes = list(results["log2FoldChange"])
+    # Both tables use gene IDs as row labels, so .join() puts them side
+    # by side. how="right" keeps every gene in the test results (the
+    # table in the brackets) and adds its name and label.
+    results = annotation.join(test.results_df, how="right")
 
+    # Give every gene one of three labels (set in settings.py):
+    #   higher_label          -> significant AND higher in KO
+    #   lower_label           -> significant AND lower in KO
+    #   not_significant_label -> did not pass both cutoffs
     directions = []
 
-    # Go through the genes one at a time, by position (0, 1, 2, ...).
-    for position in range(len(results)):
-        padj = all_padj[position]
-        fold_change = all_fold_changes[position]
+    # zip() walks through the two columns side by side, so each round
+    # of the loop gets one gene's padj and its fold change.
+    for padj, fold_change in zip(results["padj"], results["log2FoldChange"]):
 
-        # Cutoff 1: the adjusted p-value must be 0.05 or less.
-        # A missing padj (NaN) never counts as <= 0.05, so genes
-        # without a padj automatically fail this cutoff.
+        # Cutoff 1: padj of fdr_cutoff (0.05) or less. A missing padj
+        # (NaN) never counts as <= 0.05, so it fails automatically.
         passes_fdr = padj <= fdr_cutoff
 
-        # Cutoff 2: the fold change must be at least 1 in size, in
-        # either direction. abs() removes the minus sign
-        # (abs(-1.5) = 1.5), so +1.5 and -1.5 both pass.
+        # Cutoff 2: a change of at least fold_change_cutoff (1.0) in
+        # either direction. abs() drops the minus sign, so +1.5 and
+        # -1.5 both pass.
         passes_fold_change = abs(fold_change) >= fold_change_cutoff
 
-        # A gene is significant only if it passes BOTH cutoffs.
-        if passes_fdr and passes_fold_change:
-            if fold_change > 0:
-                directions.append("Higher in comparison")
-            elif fold_change < 0:
-                directions.append("Lower in comparison")
-            else:
-                # A fold change of exactly 0 can't pass cutoff 2, so
-                # this line never actually runs. It's here so every
-                # possible case gives the gene a label.
-                directions.append("Below thresholds")
+        # Significant only if it passes BOTH; then the sign of the fold
+        # change says which way it went. (A fold change of 0 can never
+        # pass cutoff 2, so "not above 0" here always means below 0.)
+        if passes_fdr and passes_fold_change and fold_change > 0:
+            directions.append(higher_label)
+        elif passes_fdr and passes_fold_change:
+            directions.append(lower_label)
         else:
-            directions.append("Below thresholds")
+            directions.append(not_significant_label)
 
-    # Add the list as a new column. The list was built in the same
-    # order as the table's rows, so each label lands on its own gene.
+    # Add the labels as a new column. The list is in the same order as
+    # the table's rows, so each label lands on its own gene.
     results["direction"] = directions
 
-    # Sort the genes so the smallest adjusted p-values come first.
-    # If two genes have the same padj, the one with the smaller raw
-    # p-value goes first. Genes with no padj go to the bottom.
+    # Smallest adjusted p-value first (ties broken by the raw p-value);
+    # genes with no padj go to the bottom. Then save the table.
+    # "output / file name" joins the folder and the file name.
     results = results.sort_values(["padj", "pvalue"])
-
-    # Save the full results table as a tab-separated file.
-    # "output" is a Path (a folder); "/" joins the folder and the file
-    # name into one path, e.g. akap11_go_bp_results/02_differential...
-    results.to_csv(output / "02_differential_expression.tsv", sep="\t")
+    results.to_csv(output / differential_expression_file, sep="\t")
 
     # ===============================================================
     # STEP 3: Make two expression tables for the plots
     # ===============================================================
 
-    # The row and column labels we'll need below.
-    sample_names = metadata.index
-    gene_ids = counts.index
+    # Table A: normalized counts = raw count / the sample's size factor.
+    # A deeply sequenced sample (like clone 20) has a bigger size
+    # factor, so its counts are divided by more. After this, a gene's
+    # numbers can be compared fairly across samples.
+    normalized = layer_to_table(model, "normed_counts", metadata.index, counts.index)
+    normalized.to_csv(output / normalized_counts_file, sep="\t")
 
-    # ---------------------------------------------------------------
-    # Table A: normalized counts
-    # ---------------------------------------------------------------
-
-    # Normalized count = raw count / the sample's size factor.
-    # Example: clone 20 was sequenced about twice as deeply, so its
-    # size factor is larger and its counts are divided by more. After
-    # this, a gene's numbers can be compared fairly across samples.
-    #
-    # PyDESeq2 stores them in model.layers["normed_counts"] as a plain
-    # grid of numbers with no labels, so we wrap them in a DataFrame
-    # and give it the sample names (rows) and gene IDs (columns).
-    normalized = pd.DataFrame(
-        model.layers["normed_counts"],
-        index=sample_names,
-        columns=gene_ids,
-    )
-
-    # Swap rows and columns so genes are in rows again.
-    normalized = normalized.T
-
-    # Save it. plot_paper_figures.py uses it for the paper's Fig. 1B.
-    normalized.to_csv(output / "02_normalized_counts.tsv", sep="\t")
-
-    # ---------------------------------------------------------------
-    # Table B: variance-stabilized (VST) expression
-    # ---------------------------------------------------------------
-
-    # Raw and normalized counts have a problem for plots: genes with
-    # big counts also vary by big amounts, so in a heatmap or a
-    # correlation they would dominate everything. The VST
-    # ("variance-stabilizing transformation") is a log-like transform
-    # that evens this out, so every gene counts about equally.
-    #
-    # use_design=False means "don't use the WT/KO groups for this
-    # step", so the transform can't make the groups look more
-    # different than they are.
+    # Table B: VST ("variance-stabilizing transformation") expression.
+    # In raw counts, highly expressed genes also vary the most, so they
+    # would dominate heatmaps and correlations. VST is a log-like
+    # transform that evens this out, so every gene counts about equally.
+    # use_design=False: don't use the WT/KO groups here, so the
+    # transform can't make the groups look more different than they are.
     model.vst(use_design=False)
-
-    # Same wrapping as for Table A.
-    transformed = pd.DataFrame(
-        model.layers["vst_counts"],
-        index=sample_names,
-        columns=gene_ids,
-    )
-
-    # Swap rows and columns so genes are in rows again.
-    transformed = transformed.T
-
-    # Save it. plot_paper_figures.py uses it for the paper's Fig. 2C.
-    transformed.to_csv(output / "02_vst_expression.tsv", sep="\t")
+    transformed = layer_to_table(model, "vst_counts", metadata.index, counts.index)
+    transformed.to_csv(output / vst_expression_file, sep="\t")
 
     # ===============================================================
     # STEP 4: Save the sample QC table and the significant genes
     # ===============================================================
 
-    # Add each sample's size factor to the sample table, so we can see
-    # how much each sample was scaled. A value near 1 means "average";
-    # clone 20's is the largest (about 1.19) because it is the deepest.
+    # Add each sample's size factor to the sample table. Near 1 means
+    # "average depth"; the deepest sample gets the largest (for our
+    # data, clone 20's, about 1.19). index_label puts the word "sample"
+    # at the top of the first column.
     metadata["size_factor"] = model.obs["size_factors"]
+    metadata.to_csv(output / sample_qc_file, sep="\t", index_label=sample_column)
 
-    # Save the sample table. index_label="sample" puts the word
-    # "sample" at the top of the first column in the file.
-    metadata.to_csv(output / "01_sample_qc.tsv", sep="\t", index_label="sample")
+    # Keep only the genes that passed both cutoffs, and save them.
+    significant = results[results["direction"] != not_significant_label]
+    significant.to_csv(output / significant_genes_file, sep="\t")
 
-    # Keep only the genes that passed both cutoffs: True/False per gene,
-    # then keep the True rows.
-    is_significant = results["direction"] != "Below thresholds"
-    significant = results[is_significant]
-
-    significant.to_csv(output / "02_significant_genes.tsv", sep="\t")
-
-    # Print the number in Terminal, e.g.
-    #   Genes passing both thresholds: 848
-    # print() with commas prints the pieces separated by spaces.
-    number_significant = len(significant)
-    print("Genes passing both thresholds:", number_significant)
+    # e.g. "Genes passing both thresholds: 848"
+    print("Genes passing both thresholds:", len(significant))
 
     # Send three tables back to run_analysis.py:
     #   results     -> test results for every gene in the model

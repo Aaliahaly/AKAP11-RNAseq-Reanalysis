@@ -4,8 +4,10 @@ plot_expression_heatmap.py
 ===================================================================
 
 WHAT THIS FILE DOES
-    It makes a clustered heatmap of the top 25 significant genes
-    (07_de_heatmap.png).
+    It makes a clustered heatmap of the top significant genes
+    (07_de_heatmap.png): by default the top 25 genes lower in KO and
+    the top 25 genes higher in KO (heatmap_genes and heatmap_balanced
+    in settings.py).
 
         each row    = one gene
         each column = one sample
@@ -34,11 +36,15 @@ INPUTS
     transformed        the VST expression table from fit_model.py
     metadata           each sample's group (for the color bar)
     colors             a color per group (WT blue, KO red)
-    number_of_genes    how many genes to show (25, from settings.py)
+    number_of_genes    how many genes to show (50, from settings.py)
     output             the results folder
 
-OUTPUT FILE
-    07_de_heatmap.png
+OUTPUT FILES
+    07_de_heatmap.png        genes as rows: tall, for reports and GitHub
+    07_de_heatmap_wide.png   the same heatmap turned sideways (genes as
+                             columns, samples as rows): wide, so it fits
+                             a 16:9 presentation slide with readable
+                             gene names
 
 WHY Z-SCORES?
     Genes have very different expression levels: one gene might sit
@@ -59,6 +65,7 @@ PYTHON IDEAS USED IN THIS FILE
 """
 
 import matplotlib.pyplot as plt
+import pandas as pd
 import seaborn as sns
 
 # Patch draws a small colored square, used for the legend that
@@ -67,11 +74,15 @@ from matplotlib.patches import Patch
 
 from save_plot import save_plot
 from settings import heatmap_z_limit         # 2
+from settings import heatmap_balanced        # True -> half down, half up
+from settings import higher_label            # "Higher in comparison"
+from settings import lower_label             # "Lower in comparison"
 from settings import cluster_method          # "average"
 from settings import cluster_metric          # "euclidean"
 from settings import condition_column        # "condition"
 from settings import not_significant_label   # "Below thresholds"
 from settings import heatmap_plot_file       # "07_de_heatmap.png"
+from settings import heatmap_wide_plot_file  # "07_de_heatmap_wide.png"
 
 
 def plot_expression_heatmap(results, transformed, metadata, colors, number_of_genes, output):
@@ -83,14 +94,26 @@ def plot_expression_heatmap(results, transformed, metadata, colors, number_of_ge
     # fit_model.py already sorted the results by adjusted p-value, so
     # the strongest genes are at the top of the table.
 
-    # Keep the genes that passed both cutoffs...
-    is_significant = results["direction"] != not_significant_label
-    significant_genes = results[is_significant]
+    if heatmap_balanced:
+        # Half the genes from each side (settings.py: heatmap_balanced
+        # = True). "//" divides and drops any remainder, so 50 // 2 = 25.
+        per_side = number_of_genes // 2
 
-    # ...and take the first number_of_genes of them (25, from
-    # heatmap_genes in settings.py).
-    genes = significant_genes.head(number_of_genes)
-    title = f"Top {len(genes)} differentially expressed genes"
+        # The top 25 genes lower in KO, and the top 25 higher in KO.
+        # Comparing the direction column with a label gives True/False
+        # per gene; .head() then takes the first (strongest) genes.
+        lower = results[results["direction"] == lower_label].head(per_side)
+        higher = results[results["direction"] == higher_label].head(per_side)
+
+        # Stack the two lists into one table.
+        genes = pd.concat([lower, higher])
+        title = f"Top {len(lower)} downregulated and top {len(higher)} upregulated genes"
+    else:
+        # Simply the first number_of_genes significant genes (50, from
+        # heatmap_genes in settings.py), whichever direction they go.
+        is_significant = results["direction"] != not_significant_label
+        genes = results[is_significant].head(number_of_genes)
+        title = f"Top {len(genes)} differentially expressed genes"
 
     # If NO gene passed both cutoffs (possible with another dataset),
     # show the top-ranked genes instead, and change the title so the
@@ -111,7 +134,7 @@ def plot_expression_heatmap(results, transformed, metadata, colors, number_of_ge
     # ===============================================================
 
     # genes.index holds the gene IDs we chose. .loc[ ] picks those rows
-    # out of the expression table, giving a small 25 x 6 table.
+    # out of the expression table, giving a small 50 x 6 table.
     expression = transformed.loc[genes.index]
 
     # The standard deviation ("sd", the typical spread) of each gene
@@ -252,3 +275,76 @@ def plot_expression_heatmap(results, transformed, metadata, colors, number_of_ge
     grid.figure.suptitle(title, y=1.02)
 
     save_plot(grid.figure, output / heatmap_plot_file)
+
+    # ===============================================================
+    # STEP 6: Draw the same heatmap sideways, for slides
+    # ===============================================================
+
+    # A 50-row heatmap is tall and narrow, which leaves tiny gene names
+    # on a wide presentation slide. The function below draws the SAME
+    # z-scores with rows and columns swapped.
+    draw_wide_heatmap(z_scores, sample_colors, colors, title, output)
+
+
+def draw_wide_heatmap(z_scores, sample_colors, colors, title, output):
+    """Draw the heatmap sideways: samples as rows, genes as columns.
+
+    It uses exactly the same numbers and the same clustering settings
+    as the main heatmap; only the layout changes.
+    """
+
+    # .T ("transpose") swaps rows and columns: now each ROW is a sample
+    # and each COLUMN is a gene.
+    sideways = z_scores.T
+
+    # The figure gets wider with more genes: about 0.28 inches per gene
+    # plus 3 inches for the tree and labels (visual only).
+    width = 0.28 * sideways.shape[1] + 3
+
+    # The same clustermap call as in STEP 5, with two differences:
+    #   row_colors -> the group color bar now runs down the LEFT side,
+    #                 because samples are rows
+    #   xticklabels=True -> write every gene's name (now along the
+    #                 bottom)
+    grid = sns.clustermap(
+        sideways,
+        method=cluster_method,
+        metric=cluster_metric,
+        cmap="vlag",
+        center=0,
+        vmin=-heatmap_z_limit,
+        vmax=heatmap_z_limit,
+        row_colors=sample_colors,
+        xticklabels=True,
+        yticklabels=True,
+        linewidths=0.5,
+        linecolor="white",
+        figsize=(width, 5.5),
+        dendrogram_ratio=(0.06, 0.2),
+        cbar_pos=(0.005, 0.8, 0.008, 0.15),
+        cbar_kws={"label": f"z-score (±{heatmap_z_limit})"},
+    )
+
+    # Remove the automatic axis titles, and write gene names in
+    # italics, turned upright (90 degrees) so they don't overlap.
+    grid.ax_heatmap.set_xlabel("")
+    grid.ax_heatmap.set_ylabel("")
+    for gene_label in grid.ax_heatmap.get_xticklabels():
+        gene_label.set_style("italic")
+    grid.ax_heatmap.tick_params(axis="x", labelrotation=90)
+    grid.ax_heatmap.tick_params(axis="y", labelrotation=0)
+
+    # The same group legend as the main heatmap, at the top right.
+    legend_squares = []
+    for group in colors:
+        legend_squares.append(Patch(color=colors[group], label=group))
+    grid.ax_col_dendrogram.legend(
+        handles=legend_squares,
+        title=condition_column,
+        loc="center left",
+        bbox_to_anchor=(1.0, 0.5),
+        frameon=False,
+    )
+
+    grid.figure.suptitle(title, y=1.02)
+    save_plot(grid.figure, output / heatmap_wide_plot_file)

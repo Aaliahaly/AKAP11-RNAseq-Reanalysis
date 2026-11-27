@@ -1,0 +1,10 @@
+field	value
+short_citation	Farhangdoost et al. (2025)
+full_citation	Molecular Psychiatry 30:4543-4557
+doi_link	https://doi.org/10.1038/s41380-025-03040-x
+fig1b_gene	AKAP11
+fig1b_method	RT-qPCR on exon 7
+fig2c_most_different_sample	AKAP11_KO_clone20
+gsea_headline	ribosome and protein-synthesis terms go down in the knockout
+gsea_headline_keywords	ribosom;translation;rrna;trna
+gsea_headline_direction	Lower in comparison

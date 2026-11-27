@@ -31,6 +31,10 @@ PYTHON IDEAS USED IN THIS FILE
 # matplotlib.pyplot every time.
 import matplotlib.pyplot as plt
 
+# The image sharpness (dots per inch) comes from settings.py, so every
+# figure in the project is saved at the same resolution.
+from settings import image_resolution    # 200
+
 
 def save_plot(fig, path):
     """Save a figure to a file, then close it."""
@@ -46,9 +50,8 @@ def save_plot(fig, path):
     #           format to write.
 
     # dpi means "dots per inch": how many pixels for each inch of the
-    # figure. 200 gives a sharp image that still has a modest file size.
-    # (Screens are about 100 dpi; print usually needs 300.)
-    image_resolution = 200
+    # figure. image_resolution is set in settings.py (200 gives a sharp
+    # image that still has a modest file size).
 
     # Write the figure to the file.
     #

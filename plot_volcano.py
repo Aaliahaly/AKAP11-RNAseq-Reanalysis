@@ -58,6 +58,15 @@ from save_plot import save_plot
 from settings import fdr_cutoff            # 0.05
 from settings import fold_change_cutoff    # 1.0
 from settings import volcano_labels        # 8 names per side
+from settings import smallest_plotted_p_value   # 1e-300
+from settings import higher_label          # "Higher in comparison"
+from settings import lower_label           # "Lower in comparison"
+from settings import not_significant_label # "Below thresholds"
+from settings import not_significant_color # light gray
+from settings import cutoff_line_color     # gray
+from settings import label_line_color      # dark gray
+from settings import volcano_plot_file     # "05_volcano.png"
+from settings import volcano_labels_file   # "05_volcano_labels.tsv"
 
 
 def plot_volcano(results, reference_group, comparison_group, colors, output):
@@ -81,10 +90,11 @@ def plot_volcano(results, reference_group, comparison_group, colors, output):
 
     # We are about to take log10 of the adjusted p-values, and log10(0)
     # is impossible. A few genes have p-values so tiny the computer
-    # stores them as 0, so we raise anything smaller than 1e-300
-    # (that's 0.000...0001 with 300 zeros) up to 1e-300.
+    # stores them as 0, so we raise anything smaller than
+    # smallest_plotted_p_value (1e-300 in settings.py: that's
+    # 0.000...0001 with 300 zeros) up to that value.
     # This only affects the plot; the "padj" column itself isn't changed.
-    adjusted_p = genes["padj"].clip(lower=1e-300)
+    adjusted_p = genes["padj"].clip(lower=smallest_plotted_p_value)
 
     # -log10: smaller p-values become bigger numbers (see the top of
     # this file), so stronger genes sit higher on the plot.
@@ -95,21 +105,23 @@ def plot_volcano(results, reference_group, comparison_group, colors, output):
     # STEP 2: Draw the dots and the cutoff lines
     # ===============================================================
 
-    # fit_model.py gave every gene one of three "direction" labels.
-    # This dictionary gives each label a color:
+    # fit_model.py gave every gene one of three "direction" labels
+    # (they are set in settings.py). This dictionary gives each label
+    # a color:
     direction_colors = {
-        "Below thresholds": "#b9bfc6",                      # light gray
-        "Lower in comparison": colors[reference_group],     # WT's color (blue)
-        "Higher in comparison": colors[comparison_group],   # KO's color (red)
+        not_significant_label: not_significant_color,   # light gray
+        lower_label: colors[reference_group],           # WT's color (blue)
+        higher_label: colors[comparison_group],         # KO's color (red)
     }
 
     # And this one gives each label the text shown in the legend.
     # A gene lower in KO is the same thing as higher in WT, so
-    # "Lower in comparison" appears as "Higher in WT".
+    # "Lower in comparison" appears as "Higher in WT". The group names
+    # come from what the user typed, so the legend always fits the data.
     direction_labels = {
-        "Below thresholds": "Below thresholds",
-        "Lower in comparison": "Higher in " + reference_group,
-        "Higher in comparison": "Higher in " + comparison_group,
+        not_significant_label: not_significant_label,
+        lower_label: "Higher in " + reference_group,
+        higher_label: "Higher in " + comparison_group,
     }
 
     # A wide figure (12 x 7 inches), with room for gene names and a
@@ -118,10 +130,9 @@ def plot_volcano(results, reference_group, comparison_group, colors, output):
 
     # Draw the three groups of genes one after another, so each group
     # gets its own color and its own line in the legend.
-    # Looping over a dictionary goes through its keys:
-    # "Below thresholds", then "Lower in comparison", then
-    # "Higher in comparison". The gray group is drawn first, so the
-    # colored dots end up on top of it.
+    # Looping over a dictionary goes through its keys in the order they
+    # were written: not significant, then lower, then higher. The gray
+    # group is drawn first, so the colored dots end up on top of it.
     for direction in direction_colors:
 
         # Keep only the genes with this direction.
@@ -145,23 +156,23 @@ def plot_volcano(results, reference_group, comparison_group, colors, output):
     # -log10(padj), so the line goes at -log10(0.05), which is about
     # 1.3. Dots above it have padj < 0.05.
     fdr_line_height = -np.log10(fdr_cutoff)
-    ax.axhline(fdr_line_height, linestyle="--", color="gray", linewidth=0.8)
+    ax.axhline(fdr_line_height, linestyle="--", color=cutoff_line_color, linewidth=0.8)
 
-    # Two dashed vertical lines at the fold-change cutoff: one at -1
-    # (halved) and one at +1 (doubled). Colored dots are always outside
+    # Two dashed vertical lines at the fold-change cutoff: with
+    # fold_change_cutoff = 1, one at -1 (halved) and one at +1 (doubled). Colored dots are always outside
     # these two lines AND above the horizontal one.
     left_cutoff = -fold_change_cutoff
     right_cutoff = fold_change_cutoff
 
-    ax.axvline(left_cutoff, linestyle="--", color="gray", linewidth=0.8)
-    ax.axvline(right_cutoff, linestyle="--", color="gray", linewidth=0.8)
+    ax.axvline(left_cutoff, linestyle="--", color=cutoff_line_color, linewidth=0.8)
+    ax.axvline(right_cutoff, linestyle="--", color=cutoff_line_color, linewidth=0.8)
 
     # ===============================================================
     # STEP 3: Choose which genes get a name label
     # ===============================================================
 
     # A True/False column: did the gene pass both cutoffs?
-    genes["passes_thresholds"] = genes["direction"] != "Below thresholds"
+    genes["passes_thresholds"] = genes["direction"] != not_significant_label
 
     # Sort the genes so the best candidates for labels come first:
     #   1st: genes that passed (True) before genes that didn't (False)
@@ -176,7 +187,8 @@ def plot_volcano(results, reference_group, comparison_group, colors, output):
     )
 
     # Left side: genes with a negative fold change (higher in WT).
-    # .head(8) takes the first 8 rows, which are the best 8.
+    # .head(volcano_labels) takes the first rows (8, from settings.py),
+    # which are the best 8.
     is_left_side = ranked["log2FoldChange"] < 0
     left = ranked[is_left_side].head(volcano_labels)
 
@@ -239,7 +251,7 @@ def plot_volcano(results, reference_group, comparison_group, colors, output):
             x=candidates["log2FoldChange"],
             y=candidates["minus_log10_fdr"],
             ax=ax,
-            arrowprops={"arrowstyle": "-", "color": "#65717a"},
+            arrowprops={"arrowstyle": "-", "color": label_line_color},
             iter_lim=250,
         )
 
@@ -247,13 +259,13 @@ def plot_volcano(results, reference_group, comparison_group, colors, output):
     # STEP 4: Save the plot and the list of labeled genes
     # ===============================================================
 
-    save_plot(fig, output / "05_volcano.png")
+    save_plot(fig, output / volcano_plot_file)
 
     # Save the numbers behind every labeled gene, so you can look them
     # up without reading them off the plot.
     columns_to_save = ["gene_name", "log2FoldChange", "padj", "direction"]
     labeled_genes = candidates[columns_to_save]
-    labeled_genes.to_csv(output / "05_volcano_labels.tsv", sep="\t")
+    labeled_genes.to_csv(output / volcano_labels_file, sep="\t")
 
     # ===============================================================
     # STEP 5: Make the MA plot, with the same genes and colors

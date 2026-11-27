@@ -7,8 +7,11 @@ WHAT THIS FILE DOES
     It reads the two input tables, checks that they look right,
     removes genes with very few reads, and prepares readable gene
     names for the plots.
+
     The two input tables are:
+
     1. The sample sheet (samples.tsv): which sample is in which group.
+
          sample              condition   geo_sample   sra_run
          AKAP11_KO_clone16   KO          GSM8200086   SRR28641569
          ...
@@ -17,6 +20,7 @@ WHAT THIS FILE DOES
     2. The count table (AKAP11_final_gene_counts_length_scaled.tsv):
        one row per gene, one column per sample. Each number is
        (roughly) how many sequencing reads came from that gene.
+
          gene_id              gene_name   AKAP11_KO_clone16   ...
          ENSG00000000003.16   TSPAN6      9775.336            ...
 
@@ -104,13 +108,11 @@ def read_counts(count_file, sample_file, reference_group, comparison_group):
 
     # The sample sheet MUST have a sample-name column and a group
     # column. Their names come from settings.py ("sample" and
-    # "condition"). If either is missing, stop with a clear message
-    # that names the missing column.
-    if sample_column not in sample_sheet_columns:
-        raise ValueError("The sample sheet needs a column called: " + sample_column)
-
-    if condition_column not in sample_sheet_columns:
-        raise ValueError("The sample sheet needs a column called: " + condition_column)
+    # "condition"). We check both with one loop; if either is missing,
+    # stop with a clear message that names the missing column.
+    for column in [sample_column, condition_column]:
+        if column not in sample_sheet_columns:
+            raise ValueError("The sample sheet needs a column called: " + column)
 
     # Every sample needs its own, non-empty name: we use the name to
     # find that sample's column in the count table.
@@ -123,12 +125,9 @@ def read_counts(count_file, sample_file, reference_group, comparison_group):
     # Each time, sample_name holds the next name, e.g. "WT_rep1".
     for sample_name in metadata[sample_column]:
 
-        # An empty name is not allowed.
-        if sample_name == "":
-            raise ValueError("Sample names must be unique and nonempty.")
-
-        # A name we have already seen is a repeat, which is not allowed.
-        if sample_name in names_seen_so_far:
+        # An empty name, or a name we have already seen (a repeat), is
+        # not allowed. "or" means: stop if EITHER problem is true.
+        if sample_name == "" or sample_name in names_seen_so_far:
             raise ValueError("Sample names must be unique and nonempty.")
 
         # Remember this name, so a later repeat of it gets caught.
@@ -166,10 +165,8 @@ def read_counts(count_file, sample_file, reference_group, comparison_group):
 
     # Find the size of the smaller group. We use it twice: to check
     # there are enough samples, and (in STEP 3) for the gene filter.
-    if number_of_reference_samples < number_of_comparison_samples:
-        smaller_group = number_of_reference_samples
-    else:
-        smaller_group = number_of_comparison_samples
+    # min() gives the smaller of the numbers inside its brackets.
+    smaller_group = min(number_of_reference_samples, number_of_comparison_samples)
 
     # Each group needs at least 2 samples (replicates; the number is
     # min_replicates_per_group in settings.py). With only one sample,
@@ -260,27 +257,14 @@ def read_counts(count_file, sample_file, reference_group, comparison_group):
             # missing column, e.g. "Missing count table column: WT_rep4"
             raise ValueError("Missing count table column: " + column)
 
-    # Make sure no name appears twice in our list. For example, a
-    # sample must not be called "gene_id"; otherwise one column would
-    # be used for two different jobs.
-    columns_seen_so_far = []
-
-    for column in required_columns:
-        if column in columns_seen_so_far:
-            raise ValueError("Gene ID, gene symbol, and sample columns must be separate.")
-        columns_seen_so_far.append(column)
-
     # Use the gene IDs as the row labels (the index), so we can look a
     # gene up by its ID, e.g. table.loc["ENSG00000023516.9"].
     table = table.set_index(gene_id_column)
 
-    # Every gene must have an ID: .hasnans is True if any are missing.
-    if table.index.hasnans:
-        raise ValueError("Gene IDs must be unique and nonempty.")
-
-    # Every gene ID must be different: .has_duplicates is True if any
-    # ID appears twice.
-    if table.index.has_duplicates:
+    # Every gene must have an ID, and every ID must be different.
+    #   .hasnans        -> True if any ID is missing
+    #   .has_duplicates -> True if any ID appears twice
+    if table.index.hasnans or table.index.has_duplicates:
         raise ValueError("Gene IDs must be unique and nonempty.")
 
     # ---------------------------------------------------------------
@@ -315,12 +299,9 @@ def read_counts(count_file, sample_file, reference_group, comparison_group):
     is_negative = counts < 0
     any_negative_counts = is_negative.any().any()
 
-    # "not" flips True to False and back, so this reads:
-    # "if it's NOT true that all values are finite, stop".
-    if not all_values_are_finite:
-        raise ValueError("Sample columns must contain finite, nonnegative counts.")
-
-    if any_negative_counts:
+    # Stop if either check fails. "not" flips True to False and back,
+    # so "not all_values_are_finite" means "some value isn't normal".
+    if not all_values_are_finite or any_negative_counts:
         raise ValueError("Sample columns must contain finite, nonnegative counts.")
 
     # ===============================================================
@@ -364,16 +345,17 @@ def read_counts(count_file, sample_file, reference_group, comparison_group):
     # nothing to compare sequencing depth against, so this is a fixed
     # rule of the method, not a choice. With real data this is never a
     # problem, but it catches a wrong setting (like min_count = 1000000).
-    if len(filtered) < 2:
-        raise ValueError("Filtering left fewer than two genes or an empty sample.")
-
-    # Every sample must still have some reads after filtering.
+    # Every sample must also still have some reads after filtering.
     # .sum() with no axis adds DOWN each column: one total per sample.
     filtered_totals = filtered.sum()
 
+    sample_left_empty = False
     for sample_name in samples:
         if filtered_totals[sample_name] == 0:
-            raise ValueError("Filtering left fewer than two genes or an empty sample.")
+            sample_left_empty = True
+
+    if len(filtered) < 2 or sample_left_empty:
+        raise ValueError("Filtering left fewer than two genes or an empty sample.")
 
     # ---------------------------------------------------------------
     # Save two quality-control (QC) numbers for each sample.

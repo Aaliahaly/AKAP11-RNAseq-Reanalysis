@@ -64,17 +64,19 @@ HOW TO READ A LINE IN THIS FILE
 # ###################################################################
 # PART 1: Column names in the two input tables
 # ###################################################################
-
+#
 # The count table (AKAP11_final_gene_counts_length_scaled.tsv) looks
 # like this (only the first few columns are shown):
+#
 #   gene_id              gene_name   AKAP11_KO_clone16   ...   WT_rep3
 #   ENSG00000000003.16   TSPAN6      9775.336            ...   9120.512
 #   ENSG00000000005.6    TNMD        0.0                 ...   1.0
-
+#
 # The sample sheet (samples.tsv) looks like this:
+#
 #   sample              condition   geo_sample   sra_run
 #   AKAP11_KO_clone16   KO          GSM8200086   SRR28641569
-
+#
 # These settings tell the scripts which columns hold what. If your own
 # files use other column names, change them here and nowhere else.
 
@@ -100,7 +102,7 @@ condition_column = "condition"
 # ###################################################################
 # PART 2: Removing genes with very few reads
 # ###################################################################
-
+#
 # Most of the 78,932 genes in the table have almost no reads in these
 # neurons. A gene with 0 to 3 reads per sample can't be tested
 # reliably, so we remove those genes before the statistics.
@@ -112,19 +114,21 @@ condition_column = "condition"
 min_count = 10
 
 # How many samples must pass for us to keep the gene?
-
+#
 # None means "not chosen here": read_counts.py then uses the size of
 # the smaller group instead.
+#
 # Example with our data:
 #   3 WT samples + 3 KO samples -> the smaller group has 3 samples.
 #   So a gene is kept if ANY 3 of the 6 samples have at least 10 reads.
+#
 # Why "any 3" and not "all 6"? A gene that is switched ON only in the
 # knockout (3 samples with reads, 3 without) is exactly the kind of
 # gene we want to find. Requiring all 6 would throw it away.
 min_samples = None
 
 # Each group needs at least this many samples (replicates).
-# Why 2? With only 1 sample per group, there is no way to measure how
+# Why 2? With only 1 sample per group there is no way to measure how
 # much samples of the same group naturally vary, so no statistical
 # test is possible. 2 is the mathematical minimum (3 or more is much
 # better). Don't set this below 2.
@@ -134,29 +138,34 @@ min_replicates_per_group = 2
 # ###################################################################
 # PART 3: Cutoffs for calling a gene "significant"
 # ###################################################################
-
+#
 # A gene is called significant only if it passes BOTH cutoffs below.
 # These are the same cutoffs the paper used, so our gene lists can be
 # compared with theirs. (plot_paper_figures.py checks this against
 # paper_reference/paper_summary.tsv.)
 
 # CUTOFF 1: the adjusted p-value (padj).
+#
 # A p-value says how surprising the result would be if the gene did
 # NOT really change. We test about 26,000 genes, so even with no real
 # changes, about 1,300 of them (5%) would get p < 0.05 by luck alone.
 # The adjusted p-value corrects for testing so many genes at once.
 # A gene needs padj of 0.05 or less.
+#
 # The same cutoff is also used for pathways and GO terms (ORA, GSEA),
 # so "significant" means the same thing everywhere in the project.
 fdr_cutoff = 0.05
 
 # CUTOFF 2: the size of the change, as a log2 fold change.
+#
 # "Fold change" = expression in KO divided by expression in WT.
 # "log2" turns fold changes into a symmetric scale:
+#
 #     fold change     log2 fold change     meaning
 #     2  (twice)       1                    doubled in KO
 #     1  (same)        0                    no change
 #     0.5 (half)      -1                    halved in KO
+#
 # A gene needs a log2 fold change of at least 1 in either direction,
 # meaning it at least doubled or at least halved.
 fold_change_cutoff = 1.0
@@ -165,10 +174,10 @@ fold_change_cutoff = 1.0
 # The three labels every gene gets (fit_model.py adds them in a
 # column called "direction"). Many scripts look for these labels, so
 # they are typed only here: a typo in one script can't break it.
-
+#
 # "comparison" means the comparison group (KO). The labels don't say
 # "KO" on purpose, so the same code works for any two groups.
-
+#
 # NOTE: paper_reference/paper_gsea_go_mf.tsv uses the same two
 # "Higher/Lower" labels. If you change them here, change them there.
 # ---------------------------------------------------------------
@@ -186,14 +195,37 @@ not_significant_label = "Below thresholds"    # failed at least one cutoff
 volcano_labels = 8
 
 # How many genes to show in the gene heatmap (07_de_heatmap.png).
-# 50 rows still leaves room for every gene name to be readable.
+# 50 genes gives both blocks (genes down in KO and genes up in KO)
+# enough rows to show a clear pattern, and the figure grows taller
+# with the number of genes, so every gene name stays readable.
 heatmap_genes = 50
+
+# How to pick those genes.
+#   True  -> half from each side: the top 25 genes LOWER in KO and the
+#            top 25 genes HIGHER in KO (by adjusted p-value). Both
+#            directions get equal room, even though our strongest genes
+#            are mostly lower in KO (many HOX genes).
+#   False -> simply the 50 genes with the smallest adjusted p-values,
+#            whichever direction they go.
+heatmap_balanced = True
 
 # In both heatmaps, colors stop getting darker beyond this z-score
 # (in either direction). Why 2? About 95% of values in a normal
 # distribution lie between -2 and +2, so this keeps the color range
 # for typical values, and one extreme gene can't wash out the rest.
 heatmap_z_limit = 2
+
+# How the heatmaps group ("cluster") similar genes and samples, which
+# draws the trees (dendrograms) at their edges.
+#   cluster_metric = "euclidean": two genes are similar if their
+#       z-scores are close in every sample (the straight-line distance
+#       between them). This is the standard choice for z-scores.
+#   cluster_method = "average": the distance between two groups is the
+#       average distance between their members. It is less sensitive
+#       to a single odd gene than "single" or "complete" linkage, and is
+#       the usual default in expression heatmaps.
+cluster_metric = "euclidean"
+cluster_method = "average"
 
 # A p-value of exactly 0 can't be put on a -log10 axis (log10(0) is
 # minus infinity). Before plotting, p-values smaller than this are
@@ -224,23 +256,24 @@ label_line_color = "#65717a"      # thin lines from a moved label to its dot
 # ###################################################################
 # PART 5: GSEA (gene set enrichment analysis)
 # ###################################################################
-
+#
 # GSEA puts ALL genes in order, from "most up in KO" to "most down in
 # KO", then checks whether the genes of a GO term (a named group of
 # genes, like "Translation") bunch up near the top or the bottom.
 
 # Which collection of gene sets (GO terms) to test.
-
+#
 # Two kinds of value work here:
+#
 #   1. An Enrichr library name. GSEApy downloads it, so you need
 #      internet. Two useful ones:
 #        "GO_Biological_Process_2025"  -> processes genes take part in
 #                                         (example: "Translation")
 #        "GO_Molecular_Function_2025"  -> what gene products do
 #                                         (example: "Actin Binding")
+#
 #   2. The name of a .gmt file in this folder. This works offline:
 #        "go_biological_process.gmt"
-
 gsea_gene_sets = "GO_Biological_Process_2025"
 
 # A short, readable name for the collection above. It is only used in
@@ -261,6 +294,15 @@ gsea_max_size = 500
 # (The results table 09_gsea_pathways.tsv still lists every term.)
 gsea_top = 8
 
+# How many GO terms get a classic GSEA enrichment plot (the running
+# enrichment score curve, 09_gsea_enrichment_plots.png), in EACH
+# direction. 3 per side gives a 3 x 2 grid, readable on one slide.
+gsea_enrichment_plot_terms = 3
+
+# The color of the running enrichment score curve. Green is the color
+# of the original GSEA software's plots, so readers recognize it.
+enrichment_curve_color = "#2CA02C"
+
 # GSEA works out what a "random" result looks like by shuffling the
 # data many times and repeating the test. Each shuffle is called a
 # permutation. 1,000 is the GSEA default; more takes longer.
@@ -275,7 +317,7 @@ seed = 42
 # ###################################################################
 # PART 6: ORA (over-representation analysis)
 # ###################################################################
-
+#
 # ORA asks a simpler question than GSEA: "Among our significant genes,
 # are the genes of some pathway found more often than chance would
 # predict?" The paper did this with Reactome pathways (its Fig. 2E).
@@ -312,7 +354,7 @@ term_id_markers = [" R-HSA-", "(GO:"]
 # The folder with small tables copied from the paper's figures.
 # compare_to_paper.py and plot_paper_figures.py check our results
 # against them.
-
+#
 # If the folder doesn't exist (for example, when you analyze a
 # different dataset), those comparison steps are skipped and
 # everything else still runs.
@@ -320,14 +362,19 @@ paper_reference_folder = "paper_reference"
 
 # ---------------------------------------------------------------
 # Rules of thumb for the "verdict" of each check.
+#
 # There is no official rule for when two analyses "agree", so these
 # are our choices, written down so anyone can see (and change) them.
 # ---------------------------------------------------------------
 
 # Check 1: the two totals of significant genes count as "similar" if
-# they are at most 20% apart. Why 20%? Different counting tools and
-# statistical models routinely move genes near the cutoffs; studies
-# comparing DESeq2 and limma-voom report differences of this size.
+# they are at most 20% apart. Why 20%? There is no standard value for
+# this; it is our own choice. Our pipeline differs from the paper's
+# at almost every step (counting, annotation, gene filter, model; see
+# paper_reference/paper_methods.tsv), and each difference moves a few
+# genes across the cutoffs, so we don't expect identical totals.
+# 20% allows for that, while a bigger gap (say 849 vs 500) would mean
+# the two analyses really disagree.
 similar_total_percent = 20
 
 # Check 2 (and the GO term check): "agree" if at least 80% of the
@@ -365,6 +412,7 @@ paper_gsea_gene_sets = "GO_Molecular_Function_2025"
 paper_gsea_collection_label = "GO Molecular Function"
 
 # Size limits for that second GSEA.
+#
 # The paper's Fig. 2F includes very large terms such as "RNA binding",
 # which has more than 1,000 genes. Our main GSEA stops at 500 genes
 # (gsea_max_size above), which would leave those terms out. So this
@@ -409,6 +457,7 @@ paper_not_reproducible_file = "paper_not_reproducible.tsv"  # panels RNA-seq can
 # files that another script wrote (for example, compare_to_paper.py
 # reads 02_differential_expression.tsv, which fit_model.py writes),
 # so the writer and the reader must use exactly the same name.
+#
 # The numbers at the start (01_, 02_, ...) are the step that makes the
 # file, so the results folder lists them in the order they were made.
 
@@ -424,11 +473,13 @@ volcano_plot_file = "05_volcano.png"
 volcano_labels_file = "05_volcano_labels.tsv"
 ma_plot_file = "06_ma.png"
 heatmap_plot_file = "07_de_heatmap.png"
+heatmap_wide_plot_file = "07_de_heatmap_wide.png"
 target_gene_plot_file = "08_target_gene.png"
 target_gene_results_file = "08_target_gene_results.tsv"
 gsea_ranking_file = "09_gsea_gene_ranking.rnk"
 gsea_results_file = "09_gsea_pathways.tsv"
 gsea_plot_file = "09_gsea_pathways.png"
+gsea_enrichment_plot_file = "09_gsea_enrichment_plots.png"
 ora_results_file = "10_reactome_ora.tsv"
 ora_plot_file = "10_reactome_ora.png"
 comparison_report_file = "11_comparison_with_paper.md"

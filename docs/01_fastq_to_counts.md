@@ -1059,7 +1059,7 @@ WT is the reference group and KO is the comparison group, so a positive log2 fol
 | 2 | fit_model.py | PyDESeq2 with the design ~condition. Significant = adjusted p ≤ 0.05 and \|log2FC\| ≥ 1, the same cutoffs as the paper | 01_sample_qc.tsv, 02_differential_expression.tsv, 02_significant_genes.tsv |
 | 3 | plot_pca.py | PCA of all genes (log2 CPM) and sample correlations | 03_pca.png, 04_sample_correlation.png |
 | 4 | plot_volcano.py, plot_ma.py | Volcano and MA plots | 05_volcano.png, 06_ma.png |
-| 5 | plot_expression_heatmap.py | Heatmap of the top 25 significant genes | 07_de_heatmap.png |
+| 5 | plot_expression_heatmap.py | Clustered heatmap of the top 50 significant genes | 07_de_heatmap.png |
 | 6 | plot_target_gene.py | AKAP11 expression in each sample | 08_target_gene.png |
 | 7 | run_gsea.py, plot_pathways.py | GSEA on all genes, ranked by the Wald statistic | 09_gsea_pathways.tsv, 09_gsea_pathways.png |
 | 8 | run_ora.py, plot_ora.py | Reactome over-representation analysis of the significant genes (paper Fig. 2E) | 10_reactome_ora.tsv, 10_reactome_ora.png |
