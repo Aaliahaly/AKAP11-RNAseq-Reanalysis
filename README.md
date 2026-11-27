@@ -44,7 +44,7 @@ This project reanalyzes bulk RNA-seq data from human iPSC-derived neurons: three
 
 ## Background
 
-*AKAP11* (A-kinase anchoring protein 11) anchors protein kinase A (PKA) and GSK3β. Rare loss-of-function variants in *AKAP11* are among the strongest known genetic risk factors for **bipolar disorder and schizophrenia**. Farhangdoost *et al.* used CRISPR to make heterozygous *AKAP11* knockout iPSC lines, turned them into neurons, and measured gene expression (RNA-seq) and DNA methylation.
+AKAP11 (A-kinase anchoring protein 11) anchors protein kinase A (PKA) and GSK3β. Rare loss-of-function variants in *AKAP11* are among the strongest known genetic risk factors for **bipolar disorder and schizophrenia**. Farhangdoost et al. used CRISPR to make heterozygous *AKAP11* knockout iPSC lines, turned them into neurons, and measured gene expression (RNA-seq) and DNA methylation.
 
 This project asks: **starting from the same raw reads but with a different, modern pipeline, do we reach the same conclusions?**
 
@@ -74,7 +74,12 @@ python3 -m pip install -r requirements.txt
 # 3. Run the whole analysis (about 6 to 10 minutes)
 #    Arguments, in order: count table, sample sheet, reference group,
 #    comparison group, results folder, and an optional gene to plot
-python3 run_analysis.py AKAP11_final_gene_counts_length_scaled.tsv samples.tsv WT KO akap11_go_bp_results AKAP11
+python3 run_analysis.py \
+    AKAP11_final_gene_counts_length_scaled.tsv \
+    samples.tsv \
+    WT KO \
+    akap11_go_bp_results \
+    AKAP11
 ```
 
 When it prints `Results saved in akap11_go_bp_results`, open:
@@ -93,7 +98,6 @@ When it prints `Results saved in akap11_go_bp_results`, open:
 AKAP11-RNAseq-Reanalysis/
 ├── README.md                     this file
 ├── requirements.txt              Python packages to install
-├── .gitignore
 │
 ├── docs/
 │   ├── 01_fastq_to_counts.md     Part 1: the full Expanse workflow, step by step
@@ -120,8 +124,8 @@ AKAP11-RNAseq-Reanalysis/
 │
 ├── AKAP11_final_gene_counts_length_scaled.tsv   input: gene counts from Part 1
 ├── samples.tsv                                  input: sample sheet
-├── go_biological_process.gmt                    GO Biological Process (offline copy)
-├── reactome_human.gmt                           Reactome pathways
+├── go_biological_process.gmt                    GO Biological Process, offline copy (optional, for GSEA)
+├── reactome_human.gmt                           Reactome pathways, offline copy (used by ORA)
 ├── paper_reference/                             values copied from the paper (numbers, sample order, methods, citation)
 └── akap11_go_bp_results/                        results of the run described below
 ```
@@ -131,6 +135,8 @@ AKAP11-RNAseq-Reanalysis/
 ## Part 1: FASTQ to gene counts (Expanse)
 
 The full, step-by-step guide is in **[docs/01_fastq_to_counts.md](docs/01_fastq_to_counts.md)**, with every command, the Slurm scripts, expected outputs, job IDs and a troubleshooting section. This is a summary.
+
+### Why nf-core/rnaseq with STAR + Salmon suits this data
 
 | Property of the data | What the pipeline needs | How nf-core/rnaseq handles it |
 |---|---|---|
@@ -246,6 +252,7 @@ Some warnings print along the way; that's normal. The run is finished when it pr
 python3 compare_to_paper.py akap11_go_bp_results
 python3 plot_paper_figures.py akap11_go_bp_results WT KO
 ```
+
 `WT KO` must match the groups you used in the full run.
 
 ---
@@ -522,7 +529,7 @@ The gene set files are for human genes. For another species, use matching `.gmt`
 
 | Part 2 (Python) | Version tested |
 |---|---|
-| Python | 3.13 and 3.14 |
+| Python | 3.12, 3.13 and 3.14 |
 | pydeseq2 | 0.6.0 (pinned) |
 | gseapy | 1.3.2 (pinned) |
 | pandas | 3.0 |
