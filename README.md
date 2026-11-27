@@ -175,6 +175,9 @@ nextflow run nf-core/rnaseq \
     -resume
 ```
 
+> [!NOTE]
+> `--max_cpus`, `--max_memory` and `--max_time` were ignored by nf-core/rnaseq 3.19.0 (they come from older nf-core pipelines). To cap resources, use `resourceLimits` in the config instead; see [Part 1 details](docs/01_fastq_to_counts.md).
+
 The output used in Part 2 is `salmon.merged.gene_counts_length_scaled.tsv`, renamed here to `AKAP11_final_gene_counts_length_scaled.tsv`.
 
 ### Quality control (MultiQC)
