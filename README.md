@@ -268,7 +268,7 @@ python3 plot_paper_figures.py akap11_go_bp_results WT KO
 | 5  | `plot_expression_heatmap.py` | Clustered heatmap (genes and samples, with dendrograms) of row z-scores of the top 25 down and top 25 up genes | Shows that the changes are consistent across replicates |
 | 6  | `plot_target_gene.py` | Normalized counts of one gene | Checks the knocked-out gene itself |
 | 7–8  | `run_gsea.py`, `plot_pathways.py`, `plot_gsea_enrichment.py` | GSEApy prerank on **all** genes ranked by the Wald statistic; GO Biological Process; 1,000 permutations, seed 42 | Finds gene sets that shift together, even when single genes change only a little |
-|**9&nbsp;-10**   | `run_ora.py`, `plot_ora.py` | Hypergeometric test of the significant genes against Reactome, with all tested genes as background; BH correction | Repeats the paper's Fig. 2E |
+|9&nbsp;-10  | `run_ora.py`, `plot_ora.py` | Hypergeometric test of the significant genes against Reactome, with all tested genes as background; BH correction | Repeats the paper's Fig. 2E |
 | 11  | `run_paper_gsea.py` | A second GSEA with GO Molecular Function and gene sets up to 3,000 genes | Matches the paper's Fig. 2F, which includes very large terms |
 | 12  | `compare_to_paper.py` | Checks the results against tables copied from the paper | Automates the comparison with the original authors |
 | 13  | `plot_paper_figures.py` | Redraws each panel of the paper's Figs. 1 and 2 and explains every difference | Shows panel by panel what was reproduced |
