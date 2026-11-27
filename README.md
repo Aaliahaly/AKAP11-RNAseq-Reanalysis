@@ -72,6 +72,8 @@ cd AKAP11-RNAseq-Reanalysis
 python3 -m pip install -r requirements.txt
 
 # 3. Run the whole analysis (about 6 to 10 minutes)
+#    Arguments, in order: count table, sample sheet, reference group,
+#    comparison group, results folder, and an optional gene to plot
 python3 run_analysis.py AKAP11_final_gene_counts_length_scaled.tsv samples.tsv WT KO akap11_go_bp_results AKAP11
 ```
 
