@@ -364,15 +364,22 @@ The top five pathways are all GPCR signalling (*Signaling by GPCR*, *GPCR ligand
 
 <table>
 <tr>
-<td><img src="akap11_go_bp_results/12_fig1B_target_gene_relative.png" alt="Fig 1B"></td>
-<td><img src="akap11_go_bp_results/12_fig2B_deg_counts.png" alt="Fig 2B"></td>
+<td width="50%" align="center"><img src="akap11_go_bp_results/12_fig1B_target_gene_relative.png" alt="Fig. 1B: AKAP11 per clone"><br><b>Fig. 1B: AKAP11 per clone</b></td>
+<td width="50%" align="center"><img src="akap11_go_bp_results/12_fig2A_volcano.png" alt="Fig. 2A: volcano plot"><br><b>Fig. 2A: volcano plot</b></td>
 </tr>
 <tr>
-<td><img src="akap11_go_bp_results/12_fig2A_volcano.png" alt="Fig 2A"></td>
-<td><img src="akap11_go_bp_results/12_fig2C_heatmap.png" alt="Fig 2C"></td>
+<td width="50%" align="center"><img src="akap11_go_bp_results/12_fig2B_deg_counts.png" alt="Fig. 2B: significant gene counts"><br><b>Fig. 2B: significant gene counts</b></td>
+<td width="50%" align="center"><img src="akap11_go_bp_results/12_fig2C_heatmap.png" alt="Fig. 2C: heatmap"><br><b>Fig. 2C: heatmap</b></td>
+</tr>
+<tr>
+<td width="50%" align="center"><img src="akap11_go_bp_results/12_fig2D_top_genes.png" alt="Fig. 2D: top 30 genes in each direction"><br><b>Fig. 2D: top 30 genes in each direction</b></td>
+<td width="50%" align="center"><img src="akap11_go_bp_results/10_reactome_ora.png" alt="Fig. 2E: Reactome ORA"><br><b>Fig. 2E: Reactome ORA</b></td>
+</tr>
+<tr>
+<td width="50%" align="center"><img src="akap11_go_bp_results/12_fig2F_gsea_go_mf.png" alt="Fig. 2F: GSEA, GO Molecular Function"><br><b>Fig. 2F: GSEA, GO Molecular Function</b></td>
+<td width="50%"></td>
 </tr>
 </table>
-
 ---
 
 ## Output files
